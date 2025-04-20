@@ -30,15 +30,15 @@ INSTALLED_APPS = [
     # Third party apps
     'rest_framework',
     'rest_framework.authtoken',  # Required for token authentication
-    'corsheaders',
+    # 'corsheaders',  # Comment this out
     
     # Local apps
     'accounts',
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # Must be first in the list
-    'nerdslab.middleware.CorsHeadersMiddleware',  # Our custom CORS middleware
+    # 'corsheaders.middleware.CorsMiddleware',  # Comment this out
+    # 'nerdslab.middleware.CorsHeadersMiddleware',  # Comment this out
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',  # This must come after CorsMiddleware
@@ -152,56 +152,52 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS settings
-CORS_ALLOW_ALL_ORIGINS = False  # Don't allow all origins in production
-CORS_ALLOWED_ORIGINS = [
-    "https://learn.nerdslab.in",  # Frontend origin
-    "http://localhost:3000",      # Local development frontend
-    "http://localhost:8080",      # Alternative local development port
-]
+# Comment out CORS settings
+# CORS_ALLOW_ALL_ORIGINS = False
+# CORS_ALLOWED_ORIGINS = [...]
 
 # Add CORS_ALLOWED_ORIGIN_REGEXES for wildcard subdomains if needed
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https://.*\.nerdslab\.in$",  # Allow all subdomains
-]
+# CORS_ALLOWED_ORIGIN_REGEXES = [
+#     r"^https://.*\.nerdslab\.in$",  # Allow all subdomains
+# ]
 
-CORS_ALLOW_CREDENTIALS = True  # Allow cookies and authorization headers
+# CORS_ALLOW_CREDENTIALS = True  # Allow cookies and authorization headers
 
 # Make sure CSRF trusted origins include your domains
-CSRF_TRUSTED_ORIGINS = [
-    "https://learn.nerdslab.in",
-    "https://nerd-api.nerdslab.in",
-    "https://labs.nerdslab.in",
-]
+# CSRF_TRUSTED_ORIGINS = [
+#     "https://learn.nerdslab.in",
+#     "https://nerd-api.nerdslab.in",
+#     "https://labs.nerdslab.in",
+# ]
 
 # Pre-flight requests cache time (seconds)
-CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
+# CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
 
 # Allow these headers in requests
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-]
+# CORS_ALLOW_HEADERS = [
+#     'accept',
+#     'accept-encoding',
+#     'authorization',
+#     'content-type',
+#     'dnt',
+#     'origin',
+#     'user-agent',
+#     'x-csrftoken',
+#     'x-requested-with',
+# ]
 
 # Allow these HTTP methods
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
+# CORS_ALLOW_METHODS = [
+#     'DELETE',
+#     'GET',
+#     'OPTIONS',
+#     'PATCH',
+#     'POST',
+#     'PUT',
+# ]
 
 # Frontend URL for password reset links
-FRONTEND_URL = 'https://learn.nerdslab.in'  # Update to match your frontend
+# FRONTEND_URL = 'https://learn.nerdslab.in'  # Update to match your frontend
 
 # Email settings for Zoho Mail
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

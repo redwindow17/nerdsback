@@ -115,18 +115,6 @@ class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []  # No authentication required for login
     
-    def options(self, request, *args, **kwargs):
-        """
-        Handle preflight OPTIONS requests
-        """
-        response = Response()
-        response["Access-Control-Allow-Origin"] = "https://learn.nerdslab.in"
-        response["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
-        response["Access-Control-Allow-Credentials"] = "true"
-        response["Access-Control-Max-Age"] = "86400"
-        return response
-    
     def post(self, request):
         # Debug request information
         print("Login request headers:", request.headers)
@@ -140,9 +128,6 @@ class LoginView(APIView):
             # Print validation errors for debugging
             print("Login validation errors:", serializer.errors)
             response = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            # Add CORS headers to error response
-            response["Access-Control-Allow-Origin"] = "https://learn.nerdslab.in"
-            response["Access-Control-Allow-Credentials"] = "true"
             return response
         
         username = serializer.validated_data['username']
@@ -160,9 +145,6 @@ class LoginView(APIView):
                         {"non_field_errors": ["Invalid credentials"]},
                         status=status.HTTP_401_UNAUTHORIZED
                     )
-                    # Add CORS headers to error response
-                    response["Access-Control-Allow-Origin"] = "https://learn.nerdslab.in"
-                    response["Access-Control-Allow-Credentials"] = "true"
                     return response
                     
                 # Password is correct but user is not verified
@@ -206,9 +188,6 @@ class LoginView(APIView):
                     },
                     status=status.HTTP_401_UNAUTHORIZED
                 )
-                # Add CORS headers to error response
-                response["Access-Control-Allow-Origin"] = "https://learn.nerdslab.in"
-                response["Access-Control-Allow-Credentials"] = "true"
                 return response
         except User.DoesNotExist:
             # Continue with normal authentication flow
@@ -226,18 +205,12 @@ class LoginView(APIView):
                 "token": token.key,
                 "message": "Login successful"
             })
-            # Add CORS headers to success response
-            response["Access-Control-Allow-Origin"] = "https://learn.nerdslab.in"
-            response["Access-Control-Allow-Credentials"] = "true"
             return response
         else:
             response = Response(
                 {"non_field_errors": ["Invalid credentials"]},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-            # Add CORS headers to error response
-            response["Access-Control-Allow-Origin"] = "https://learn.nerdslab.in"
-            response["Access-Control-Allow-Credentials"] = "true"
             return response
 
 class LogoutView(APIView):
