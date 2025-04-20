@@ -37,11 +37,12 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Must be first in the list
+    'nerdslab.middleware.CorsHeadersMiddleware',  # Our custom CORS middleware
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',  # This must come after CorsMiddleware
     'nerdslab.middleware.ApiCsrfExemptMiddleware',  # Custom middleware to exempt API from CSRF
-    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'accounts.middleware.PasswordRehashMiddleware',  # Password rehashing middleware
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -152,12 +153,26 @@ REST_FRAMEWORK = {
 }
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins for testing; change to False in production
+CORS_ALLOW_ALL_ORIGINS = False  # Don't allow all origins in production
 CORS_ALLOWED_ORIGINS = [
-    "https://learn.nerdslab.in",  # Allow your frontend origin
+    "https://learn.nerdslab.in",  # Frontend origin
+    "http://localhost:3000",      # Local development frontend
+    "http://localhost:8080",      # Alternative local development port
+]
+
+# Add CORS_ALLOWED_ORIGIN_REGEXES for wildcard subdomains if needed
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.nerdslab\.in$",  # Allow all subdomains
 ]
 
 CORS_ALLOW_CREDENTIALS = True  # Allow cookies and authorization headers
+
+# Make sure CSRF trusted origins include your domains
+CSRF_TRUSTED_ORIGINS = [
+    "https://learn.nerdslab.in",
+    "https://nerd-api.nerdslab.in",
+    "https://labs.nerdslab.in",
+]
 
 # Pre-flight requests cache time (seconds)
 CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
@@ -230,4 +245,10 @@ if DEBUG:
     CSRF_COOKIE_SECURE = False
 
 # Ensure your API endpoints are correctly defined
-# Check your views and URLs to ensure they are set up correctly 
+# Check your views and URLs to ensure they are set up correctly
+
+# Add to settings.py
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_SSL_REDIRECT = True
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True 
