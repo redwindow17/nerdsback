@@ -122,4 +122,36 @@ class LabListView(APIView):
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            ) 
+            )
+
+class LabStopView(APIView):
+    """View for stopping a lab instance"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, lab_id):
+        try:
+            client = LabClient()
+            result = client.stop_lab(lab_id)
+            return Response(result)
+        except Exception as e:
+            logger.error(f"Error stopping lab {lab_id}: {str(e)}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class LabRestartView(APIView):
+    """View for restarting a lab instance"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, lab_id):
+        try:
+            client = LabClient()
+            result = client.restart_lab(lab_id)
+            return Response(result)
+        except Exception as e:
+            logger.error(f"Error restarting lab {lab_id}: {str(e)}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

@@ -137,4 +137,28 @@ class LabClient:
         """Get lab status"""
         if lab_id:
             return self._make_request('get', f'lab-status/{lab_id}/')
-        return self._make_request('get', 'lab-status/') 
+        return self._make_request('get', 'lab-status/')
+    
+    def stop_lab(self, lab_id: str) -> Dict[str, Any]:
+        """
+        Stop a lab instance and delete its container.
+        
+        Args:
+            lab_id: The ID of the lab to stop
+            
+        Returns:
+            Dictionary with operation status
+        """
+        return self._make_request('post', f'labs/{lab_id}/stop/')
+    
+    def restart_lab(self, lab_id: str) -> Dict[str, Any]:
+        """
+        Restart a lab instance.
+        
+        Args:
+            lab_id: The ID of the lab to restart
+            
+        Returns:
+            Dictionary with operation status and new URL if applicable
+        """
+        return self._make_request('post', f'labs/{lab_id}/restart/')

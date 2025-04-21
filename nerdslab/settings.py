@@ -30,15 +30,14 @@ INSTALLED_APPS = [
     # Third party apps
     'rest_framework',
     'rest_framework.authtoken',  # Required for token authentication
-    # 'corsheaders',  # Comment this out
+    'corsheaders',  # Enable CORS
     
     # Local apps
     'accounts',
 ]
 
 MIDDLEWARE = [
-    # 'corsheaders.middleware.CorsMiddleware',  # Comment this out
-    # 'nerdslab.middleware.CorsHeadersMiddleware',  # Comment this out
+    'corsheaders.middleware.CorsMiddleware',  # Enable CORS middleware
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',  # This must come after CorsMiddleware
@@ -152,49 +151,18 @@ REST_FRAMEWORK = {
     ],
 }
 
-# Comment out CORS settings
-# CORS_ALLOW_ALL_ORIGINS = False
-# CORS_ALLOWED_ORIGINS = [...]
+# CORS Settings
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    "https://learn.nerdslab.in",
+]
+CORS_ALLOW_CREDENTIALS = True
 
-# Add CORS_ALLOWED_ORIGIN_REGEXES for wildcard subdomains if needed
-# CORS_ALLOWED_ORIGIN_REGEXES = [
-#     r"^https://.*\.nerdslab\.in$",  # Allow all subdomains
-# ]
-
-# CORS_ALLOW_CREDENTIALS = True  # Allow cookies and authorization headers
-
-# Make sure CSRF trusted origins include your domains
-# CSRF_TRUSTED_ORIGINS = [
-#     "https://learn.nerdslab.in",
-#     "https://nerd-api.nerdslab.in",
-#     "https://labs.nerdslab.in",
-# ]
-
-# Pre-flight requests cache time (seconds)
-# CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
-
-# Allow these headers in requests
-# CORS_ALLOW_HEADERS = [
-#     'accept',
-#     'accept-encoding',
-#     'authorization',
-#     'content-type',
-#     'dnt',
-#     'origin',
-#     'user-agent',
-#     'x-csrftoken',
-#     'x-requested-with',
-# ]
-
-# Allow these HTTP methods
-# CORS_ALLOW_METHODS = [
-#     'DELETE',
-#     'GET',
-#     'OPTIONS',
-#     'PATCH',
-#     'POST',
-#     'PUT',
-# ]
+# CSRF trusted origins
+CSRF_TRUSTED_ORIGINS = [
+    "https://learn.nerdslab.in",
+    "https://nerd-api.nerdslab.in",
+]
 
 # Frontend URL for password reset links
 # FRONTEND_URL = 'https://learn.nerdslab.in'  # Update to match your frontend
@@ -247,4 +215,4 @@ if DEBUG:
 SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_SSL_REDIRECT = True
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True 
+SECURE_HSTS_PRELOAD = True
