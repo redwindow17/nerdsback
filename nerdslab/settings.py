@@ -37,13 +37,13 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # Enable CORS middleware
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',  # This must come after CorsMiddleware
+    'nerdslab.middleware.CorsHeadersMiddleware',  # Our custom CORS middleware
+    'django.middleware.common.CommonMiddleware',
     'nerdslab.middleware.ApiCsrfExemptMiddleware',  # Custom middleware to exempt API from CSRF
     'django.middleware.csrf.CsrfViewMiddleware',
-    'accounts.middleware.PasswordRehashMiddleware',  # Password rehashing middleware
+    'accounts.middleware.PasswordRehashMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -151,12 +151,33 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS Settings
+# CORS Settings - These will be handled by our custom middleware
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     "https://learn.nerdslab.in",
 ]
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+CORS_EXPOSE_HEADERS = ['content-length', 'content-range']
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
 
 # CSRF trusted origins
 CSRF_TRUSTED_ORIGINS = [

@@ -13,7 +13,6 @@ class ApiCsrfExemptMiddleware(MiddlewareMixin):
 class CorsHeadersMiddleware:
     """
     Middleware to add CORS headers to all responses to ensure proper cross-origin access
-    DISABLED: We now handle CORS headers at the Nginx level to avoid duplication
     """
     def __init__(self, get_response):
         self.get_response = get_response
@@ -21,17 +20,17 @@ class CorsHeadersMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
         
-        # CORS headers are now handled by Nginx
-        # Leaving this middleware in place but disabling its functionality
-        # to avoid duplicate headers
+        # Add CORS headers to all responses
+        response["Access-Control-Allow-Origin"] = "https://learn.nerdslab.in"
+        response["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, X-CSRFToken"
+        response["Access-Control-Allow-Credentials"] = "true"
         
-        # # Handle preflight OPTIONS requests specifically
-        # if request.method == 'OPTIONS':
-        #     # Add CORS headers for preflight requests
-        #     response["Access-Control-Allow-Origin"] = "https://learn.nerdslab.in"
-        #     response["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        #     response["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
-        #     response["Access-Control-Allow-Credentials"] = "true"
-        #     response["Access-Control-Max-Age"] = "86400"  # 24 hours
+        # Handle preflight OPTIONS requests
+        if request.method == 'OPTIONS':
+            response["Access-Control-Max-Age"] = "86400"  # 24 hours
+            if not response.content:  # If it's a pure OPTIONS request
+                response.content = b''
+                response.status_code = 200
         
-        return response 
+        return response
