@@ -16,7 +16,12 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-123456789abcde
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if os.environ.get('DJANGO_ALLOWED_HOSTS') else []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'testserver',  # Required for tests
+    'nerd-api.nerdslab.in'
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -38,15 +43,14 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'nerdslab.middleware.CorsHeadersMiddleware',  # Our custom CORS middleware
+    'django.contrib.sessions.middleware.SessionMiddleware',  # Must be before CSRF
+    'corsheaders.middleware.CorsMiddleware',  # Must be before CommonMiddleware
     'django.middleware.common.CommonMiddleware',
-    'nerdslab.middleware.ApiCsrfExemptMiddleware',  # Custom middleware to exempt API from CSRF
     'django.middleware.csrf.CsrfViewMiddleware',
-    'accounts.middleware.PasswordRehashMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'accounts.middleware.PasswordRehashMiddleware',
 ]
 
 ROOT_URLCONF = 'nerdslab.urls'
@@ -151,11 +155,14 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS Settings - These will be handled by our custom middleware
+# CORS Settings
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
-    "https://learn.nerdslab.in",
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://learn.nerdslab.in',
 ]
+
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -176,17 +183,17 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
-CORS_EXPOSE_HEADERS = ['content-length', 'content-range']
-CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
 
 # CSRF trusted origins
 CSRF_TRUSTED_ORIGINS = [
-    "https://learn.nerdslab.in",
-    "https://nerd-api.nerdslab.in",
+    'https://learn.nerdslab.in',
+    'https://nerd-api.nerdslab.in',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
 ]
 
 # Frontend URL for password reset links
-# FRONTEND_URL = 'https://learn.nerdslab.in'  # Update to match your frontend
+FRONTEND_URL = 'https://learn.nerdslab.in'
 
 # Email settings for Zoho Mail
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
