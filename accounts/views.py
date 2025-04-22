@@ -31,6 +31,11 @@ class RegisterView(generics.CreateAPIView):
     authentication_classes = []  # No authentication required for registration
     serializer_class = RegisterSerializer
     
+    def options(self, request, *args, **kwargs):
+        response = Response()
+        response["Allow"] = "POST,OPTIONS"
+        return response
+
     def create(self, request, *args, **kwargs):
         # Print request data for debugging
         print("Register request data:", request.data)
@@ -115,6 +120,11 @@ class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []  # No authentication required for login
     
+    def options(self, request, *args, **kwargs):
+        response = Response()
+        response["Allow"] = "POST,OPTIONS"
+        return response
+        
     def post(self, request):
         # Debug request information
         print("Login request headers:", request.headers)
@@ -632,4 +642,4 @@ def csrf_failure(request, reason=""):
         }, status=403)
     
     # For HTML requests
-    return render(request, 'accounts/csrf_error.html', {'reason': reason}, status=403) 
+    return render(request, 'accounts/csrf_error.html', {'reason': reason}, status=403)

@@ -14,13 +14,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-123456789abcdefghijklmnopqrstuvwxyz')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+DEBUG = True
 
+# Additional allowed hosts for Cloudflare
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    'testserver',  # Required for tests
-    'nerd-api.nerdslab.in'
+    'nerd-api.nerdslab.in',
+    'learn.nerdslab.in',
+    'labs.nerdslab.in',
 ]
 
 # Application definition
@@ -42,9 +44,11 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # Must be first!
+    'nerdslab.middleware.CloudflareProxyMiddleware',
+    'nerdslab.middleware.CorsHeadersMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',  # Must be before CSRF
-    'corsheaders.middleware.CorsMiddleware',  # Must be before CommonMiddleware
+    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -155,15 +159,27 @@ REST_FRAMEWORK = {
     ],
 }
 
+# Security and CORS Settings
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = False  # Handled by Cloudflare
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+# Cloudflare settings
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+
 # CORS Settings
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
     'https://learn.nerdslab.in',
+    'https://labs.nerdslab.in',
+    'https://nerd-api.nerdslab.in'
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
+
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -172,6 +188,7 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
+
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -184,12 +201,19 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# CSRF trusted origins
+# Ensure CORS headers are exposed
+CORS_EXPOSE_HEADERS = [
+    'access-control-allow-origin',
+    'access-control-allow-credentials',
+    'access-control-allow-methods',
+    'access-control-allow-headers',
+]
+
+# CSRF Settings
 CSRF_TRUSTED_ORIGINS = [
     'https://learn.nerdslab.in',
+    'https://labs.nerdslab.in',
     'https://nerd-api.nerdslab.in',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
 ]
 
 # Frontend URL for password reset links
@@ -219,10 +243,10 @@ STATICFILES_DIRS = [
 # Security Settings
 SESSION_COOKIE_SECURE = True  # Only send over HTTPS
 SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access
-SESSION_COOKIE_SAMESITE = 'Strict'  # Prevent CSRF
+SESSION_COOKIE_SAMESITE = 'Lax'  # Changed from Strict to Lax for better compatibility
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SAMESITE = 'Strict'
+CSRF_COOKIE_SAMESITE = 'Lax'  # Changed from Strict to Lax for better compatibility
 CSRF_USE_SESSIONS = True
 CSRF_FAILURE_VIEW = 'accounts.views.csrf_failure'
 
@@ -233,14 +257,44 @@ SESSION_COOKIE_AGE = 3600  # 1 hour in seconds
 
 # For development, you may need to disable some settings
 if DEBUG:
+    SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
+    CORS_REPLACE_HTTPS_REFERER = True
 
 # Ensure your API endpoints are correctly defined
 # Check your views and URLs to ensure they are set up correctly
 
 # Add to settings.py
 SECURE_HSTS_SECONDS = 31536000  # 1 year
-SECURE_SSL_REDIRECT = True
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
+
+# Add logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+        'nerdslab': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
