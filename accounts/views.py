@@ -14,6 +14,7 @@ from rest_framework import serializers
 from django.utils import timezone
 from django.http import JsonResponse
 from django.shortcuts import render
+from django.middleware.csrf import get_token
 
 from .serializers import (
     UserSerializer,
@@ -34,6 +35,11 @@ class RegisterView(generics.CreateAPIView):
     def options(self, request, *args, **kwargs):
         response = Response()
         response["Allow"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Origin"] = "https://learn.nerdslab.in"
+        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
+        response["Access-Control-Allow-Credentials"] = "true"
+        response["Access-Control-Max-Age"] = "86400"
         return response
 
     def create(self, request, *args, **kwargs):
@@ -123,90 +129,24 @@ class LoginView(APIView):
     def options(self, request, *args, **kwargs):
         response = Response()
         response["Allow"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Origin"] = "https://learn.nerdslab.in"
+        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
+        response["Access-Control-Allow-Credentials"] = "true"
+        response["Access-Control-Max-Age"] = "86400"
         return response
-        
+    
     def post(self, request):
-        # Debug request information
         print("Login request headers:", request.headers)
-        print("Login request method:", request.method)
-        print("Login request path:", request.path)
-        print("Login request user:", request.user)
-        print("Login request data:", request.data)
-        
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
-            # Print validation errors for debugging
-            print("Login validation errors:", serializer.errors)
-            response = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            return response
-        
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
         username = serializer.validated_data['username']
         password = serializer.validated_data['password']
         
-        # First check if the user exists regardless of authentication
-        try:
-            user_obj = User.objects.get(username=username)
-            
-            # If user exists but is not active, handle accordingly
-            if not user_obj.is_active:
-                # Try to authenticate to verify password is correct
-                if not authenticate(username=username, password=password):
-                    response = Response(
-                        {"non_field_errors": ["Invalid credentials"]},
-                        status=status.HTTP_401_UNAUTHORIZED
-                    )
-                    return response
-                    
-                # Password is correct but user is not verified
-                # Create a new verification token
-                old_tokens = EmailVerificationToken.objects.filter(user=user_obj, is_used=False)
-                for token in old_tokens:
-                    token.is_used = True
-                    token.save()
-                    
-                token = EmailVerificationToken.objects.create(user=user_obj)
-                
-                # Send a new verification email
-                verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token.token}"
-                context = {
-                    'verify_url': verify_url,
-                    'user': user_obj,
-                    'expiry_hours': 48,  # Token expiry in hours
-                }
-                
-                # Render HTML email template
-                html_content = render_to_string('emails/email_verification.html', context)
-                text_content = strip_tags(html_content)  # Generate plain text version
-                
-                # Create email
-                subject = 'Verify Your NerdsLab Account'
-                from_email = settings.DEFAULT_FROM_EMAIL
-                to = [user_obj.email]
-                
-                msg = EmailMultiAlternatives(subject, text_content, from_email, to)
-                msg.attach_alternative(html_content, "text/html")
-                
-                # Send email
-                msg.send()
-                
-                print(f"Unverified account login attempt: {username}")
-                response = Response(
-                    {
-                        "non_field_errors": ["Your account is not active. We've sent you a new verification email. Please check your inbox."],
-                        "account_status": "unverified",
-                        "email": user_obj.email
-                    },
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
-                return response
-        except User.DoesNotExist:
-            # Continue with normal authentication flow
-            pass
-            
-        # Normal authentication flow
         user = authenticate(username=username, password=password)
-        
-        if user:
+        if user is not None:
             login(request, user)
             token, created = Token.objects.get_or_create(user=user)
             
@@ -217,14 +157,20 @@ class LoginView(APIView):
             })
             return response
         else:
-            response = Response(
+            return Response(
                 {"non_field_errors": ["Invalid credentials"]},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-            return response
 
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    
+    def options(self, request, *args, **kwargs):
+        response = Response()
+        response["Allow"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
+        return response
     
     def post(self, request):
         # Delete token to logout
@@ -251,6 +197,13 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
 class PasswordResetRequestView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []  # No authentication required for password reset request
+    
+    def options(self, request, *args, **kwargs):
+        response = Response()
+        response["Allow"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
+        return response
     
     def post(self, request):
         # Debug request information
@@ -308,6 +261,13 @@ class PasswordResetRequestView(APIView):
 class PasswordResetConfirmView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []  # No authentication required for password reset confirmation
+    
+    def options(self, request, *args, **kwargs):
+        response = Response()
+        response["Allow"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
+        return response
     
     def post(self, request):
         # Debug request information
@@ -411,6 +371,13 @@ class PasswordResetConfirmView(APIView):
 class ChangePasswordView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
+    def options(self, request, *args, **kwargs):
+        response = Response()
+        response["Allow"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
+        return response
+    
     def post(self, request):
         # Debug authentication info
         print("Auth header:", request.META.get('HTTP_AUTHORIZATION'))
@@ -484,6 +451,13 @@ class ChangePasswordView(APIView):
 class EmailVerificationView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []  # No authentication required for email verification
+    
+    def options(self, request, *args, **kwargs):
+        response = Response()
+        response["Allow"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
+        return response
     
     def post(self, request):
         print("Email verification request received:", request.data)
@@ -580,6 +554,13 @@ class ResendVerificationEmailView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []  # No authentication required for resending verification
     
+    def options(self, request, *args, **kwargs):
+        response = Response()
+        response["Allow"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
+        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
+        return response
+    
     def post(self, request):
         email = request.data.get('email')
         if not email:
@@ -643,3 +624,11 @@ def csrf_failure(request, reason=""):
     
     # For HTML requests
     return render(request, 'accounts/csrf_error.html', {'reason': reason}, status=403)
+
+def get_csrf_token(request):
+    """View to get a new CSRF token"""
+    token = get_token(request)
+    return JsonResponse({
+        'csrfToken': token,
+        'message': 'New CSRF token generated'
+    })

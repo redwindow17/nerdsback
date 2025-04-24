@@ -21,8 +21,6 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     'nerd-api.nerdslab.in',
-    'learn.nerdslab.in',
-    'labs.nerdslab.in',
 ]
 
 # Application definition
@@ -46,7 +44,6 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # Must be first!
     'nerdslab.middleware.CloudflareProxyMiddleware',
-    'nerdslab.middleware.CorsHeadersMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -164,17 +161,16 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = False  # Handled by Cloudflare
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+CSRF_USE_SESSIONS = False  # Store CSRF token in cookie instead of session
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access to CSRF token
+CSRF_COOKIE_SAMESITE = 'Lax'  # Allow cross-site requests while maintaining security
+CSRF_TRUSTED_ORIGINS = [
+    'https://learn.nerdslab.in',
+]
 
-# Cloudflare settings
-USE_X_FORWARDED_HOST = True
-USE_X_FORWARDED_PORT = True
-
-# CORS Settings
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     'https://learn.nerdslab.in',
-    'https://labs.nerdslab.in',
-    'https://nerd-api.nerdslab.in'
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -201,20 +197,17 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# Ensure CORS headers are exposed
+# Ensure CSRF token is included in the response headers
 CORS_EXPOSE_HEADERS = [
-    'access-control-allow-origin',
-    'access-control-allow-credentials',
-    'access-control-allow-methods',
-    'access-control-allow-headers',
+    'x-csrftoken',
+    'content-type',
+    'content-length'
 ]
 
-# CSRF Settings
-CSRF_TRUSTED_ORIGINS = [
-    'https://learn.nerdslab.in',
-    'https://labs.nerdslab.in',
-    'https://nerd-api.nerdslab.in',
-]
+# Extended security headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
 
 # Frontend URL for password reset links
 FRONTEND_URL = 'https://learn.nerdslab.in'
@@ -241,10 +234,10 @@ STATICFILES_DIRS = [
 ]
 
 # Security Settings
-SESSION_COOKIE_SECURE = True  # Only send over HTTPS
+SESSION_COOKIE_SECURE = False  # Only send over HTTPS
 SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access
 SESSION_COOKIE_SAMESITE = 'Lax'  # Changed from Strict to Lax for better compatibility
-CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = False
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = 'Lax'  # Changed from Strict to Lax for better compatibility
 CSRF_USE_SESSIONS = True
@@ -260,7 +253,6 @@ if DEBUG:
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
-    CORS_REPLACE_HTTPS_REFERER = True
 
 # Ensure your API endpoints are correctly defined
 # Check your views and URLs to ensure they are set up correctly
@@ -298,3 +290,15 @@ LOGGING = {
         },
     },
 }
+
+# Add middleware for handling OPTIONS requests
+def handle_options_request(request, response):
+    if request.method == 'OPTIONS':
+        response['Access-Control-Allow-Methods'] = 'DELETE, GET, OPTIONS, PATCH, POST, PUT'
+        response['Access-Control-Allow-Headers'] = 'accept, accept-encoding, authorization, content-type, dnt, origin, user-agent, x-csrftoken, x-requested-with'
+        response['Access-Control-Max-Age'] = '86400'
+        response['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
+        response['Access-Control-Allow-Credentials'] = 'true'
+        response['Content-Type'] = 'text/plain; charset=UTF-8'
+        response['Content-Length'] = '0'
+        return response

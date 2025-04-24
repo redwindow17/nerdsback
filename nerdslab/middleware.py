@@ -14,38 +14,34 @@ class ApiCsrfExemptMiddleware(MiddlewareMixin):
         return None
 
 class CorsHeadersMiddleware:
+    """
+    Middleware to add CORS headers to all responses to ensure proper cross-origin access
+    """
     def __init__(self, get_response):
         self.get_response = get_response
+        self.allowed_origin = 'https://learn.nerdslab.in'
 
     def __call__(self, request):
         response = self.get_response(request)
         
-        # Get the origin from the request
+        # Get origin from request headers
         origin = request.headers.get('Origin')
         
-        # Check if the origin is in our allowed list
-        allowed_origins = [
-            'https://learn.nerdslab.in',
-            'https://labs.nerdslab.in',
-            'https://nerd-api.nerdslab.in'
-        ]
-        
-        if origin in allowed_origins:
-            # Set CORS headers for the response
-            response["Access-Control-Allow-Origin"] = origin
+        # Only set CORS headers if origin matches our allowed origin
+        if origin == self.allowed_origin:
+            response["Access-Control-Allow-Origin"] = self.allowed_origin
             response["Access-Control-Allow-Credentials"] = "true"
-            response["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-            response["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, X-CSRFToken, Accept, Accept-Encoding, Origin, Cache-Control, DNT, User-Agent"
             
-            # For preflight requests
-            if request.method == 'OPTIONS':
+            if request.method == "OPTIONS":
+                response["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+                response["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, X-CSRFToken, Accept, Origin"
                 response["Access-Control-Max-Age"] = "86400"  # 24 hours
-                if not response.content:
-                    response.content = b''
-                    response["Content-Type"] = "text/plain; charset=utf-8"
-                    response["Content-Length"] = "0"
-                    response.status_code = 204  # No content
-        
+                response.content = b""
+                response["Content-Length"] = "0"
+                response.status_code = 204
+            else:
+                response["Access-Control-Expose-Headers"] = "Content-Length,Content-Range,X-CSRFToken"
+                
         return response
 
 class CorsDebugMiddleware:
@@ -70,6 +66,9 @@ class CorsDebugMiddleware:
         return response
 
 class CloudflareProxyMiddleware:
+    """
+    Middleware to handle Cloudflare proxy headers and ensure proper CORS handling
+    """
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -79,6 +78,7 @@ class CloudflareProxyMiddleware:
             request.META['REMOTE_ADDR'] = request.META['HTTP_CF_CONNECTING_IP']
         
         if 'HTTP_CF_VISITOR' in request.META:
+            # Ensure proper scheme detection (http/https)
             try:
                 import json
                 cf_visitor = json.loads(request.META['HTTP_CF_VISITOR'])
@@ -88,4 +88,17 @@ class CloudflareProxyMiddleware:
                 pass
 
         response = self.get_response(request)
+        
+        # Ensure CORS headers are present
+        if 'HTTP_ORIGIN' in request.META:
+            origin = request.META['HTTP_ORIGIN']
+            if origin in ['https://learn.nerdslab.in', 'https://labs.nerdslab.in']:
+                response['Access-Control-Allow-Origin'] = origin
+                response['Access-Control-Allow-Credentials'] = 'true'
+                
+                if request.method == 'OPTIONS':
+                    response['Access-Control-Allow-Methods'] = 'DELETE, GET, OPTIONS, PATCH, POST, PUT'
+                    response['Access-Control-Allow-Headers'] = 'accept, accept-encoding, authorization, content-type, dnt, origin, user-agent, x-csrftoken, x-requested-with'
+                    response['Access-Control-Max-Age'] = '86400'
+                    
         return response
