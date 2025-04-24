@@ -71,6 +71,7 @@ class CloudflareProxyMiddleware:
     """
     def __init__(self, get_response):
         self.get_response = get_response
+        self.allowed_origins = ['https://learn.nerdslab.in', 'https://labs.nerdslab.in']
 
     def __call__(self, request):
         # Handle Cloudflare headers
@@ -89,16 +90,18 @@ class CloudflareProxyMiddleware:
 
         response = self.get_response(request)
         
-        # Ensure CORS headers are present
-        if 'HTTP_ORIGIN' in request.META:
-            origin = request.META['HTTP_ORIGIN']
-            if origin in ['https://learn.nerdslab.in', 'https://labs.nerdslab.in']:
-                response['Access-Control-Allow-Origin'] = origin
-                response['Access-Control-Allow-Credentials'] = 'true'
+        # Always check origin and set CORS headers
+        origin = request.headers.get('Origin')
+        if origin in self.allowed_origins:
+            response['Access-Control-Allow-Origin'] = origin
+            response['Access-Control-Allow-Credentials'] = 'true'
+            
+            if request.method == 'OPTIONS':
+                response['Access-Control-Allow-Methods'] = 'DELETE, GET, OPTIONS, PATCH, POST, PUT'
+                response['Access-Control-Allow-Headers'] = 'Accept, Accept-Encoding, Authorization, Content-Type, DNT, Origin, User-Agent, X-CSRFToken, X-Requested-With'
+                response['Access-Control-Max-Age'] = '86400'
+                response.status_code = 204
+            else:
+                response['Access-Control-Expose-Headers'] = 'Content-Length, Content-Range, X-CSRFToken'
                 
-                if request.method == 'OPTIONS':
-                    response['Access-Control-Allow-Methods'] = 'DELETE, GET, OPTIONS, PATCH, POST, PUT'
-                    response['Access-Control-Allow-Headers'] = 'accept, accept-encoding, authorization, content-type, dnt, origin, user-agent, x-csrftoken, x-requested-with'
-                    response['Access-Control-Max-Age'] = '86400'
-                    
         return response

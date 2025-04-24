@@ -166,11 +166,13 @@ CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access to CSRF token
 CSRF_COOKIE_SAMESITE = 'Lax'  # Allow cross-site requests while maintaining security
 CSRF_TRUSTED_ORIGINS = [
     'https://learn.nerdslab.in',
+    'https://labs.nerdslab.in',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     'https://learn.nerdslab.in',
+    'https://labs.nerdslab.in',
 ]
 
 CORS_ALLOW_CREDENTIALS = True
