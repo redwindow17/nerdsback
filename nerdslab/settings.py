@@ -43,10 +43,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # Must be first!
+    'django.middleware.common.CommonMiddleware',  # Move this right after CorsMiddleware
     'nerdslab.middleware.CloudflareProxyMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -174,8 +174,8 @@ CORS_ALLOWED_ORIGINS = [
     'https://learn.nerdslab.in',
     'https://labs.nerdslab.in',
 ]
-
 CORS_ALLOW_CREDENTIALS = True
+
 CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
 
 CORS_ALLOW_METHODS = [
@@ -203,7 +203,7 @@ CORS_ALLOW_HEADERS = [
 CORS_EXPOSE_HEADERS = [
     'x-csrftoken',
     'content-type',
-    'content-length'
+    'content-length',
 ]
 
 # Extended security headers
