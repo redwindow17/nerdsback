@@ -52,6 +52,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'accounts.middleware.PasswordRehashMiddleware',
+    'django.middleware.cache.UpdateCacheMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.cache.FetchFromCacheMiddleware',
 ]
 
 ROOT_URLCONF = 'nerdslab.urls'
@@ -81,6 +84,25 @@ DATABASES = {
         'NAME': os.path.join('/var/www/nerdsback', 'db.sqlite3') if not DEBUG else BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Database optimization settings
+CONN_MAX_AGE = 60  # Keep database connections alive for 60 seconds
+
+# Cache settings for better performance
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',  # Change this in production
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
+
+# Cache timeout settings
+CACHE_TTL = 60 * 60 * 48  # 48 hours for email verification
+CACHE_MIDDLEWARE_SECONDS = 60 * 5  # 5 minutes general cache
+CACHE_MIDDLEWARE_KEY_PREFIX = 'nerdslab'
 
 # Password hashing configuration
 PASSWORD_HASHERS = [
@@ -242,6 +264,15 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'no-reply@nerdslab.in')
 # Store this in environment variable in production
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'dtaK8xf&')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# Email sending optimizations
+EMAIL_TIMEOUT = 5  # seconds
+EMAIL_USE_LOCALTIME = True
+EMAIL_SUBJECT_PREFIX = '[NerdsLab] '
+
+# Add email backend caching
+EMAIL_BACKEND_CACHE_PREFIX = 'email_backend_cache_'
+EMAIL_BACKEND_CACHE_TIMEOUT = 60 * 60  # 1 hour
 
 # Lab Service (Server 2) Configuration
 LAB_SERVICE_URL = os.environ.get('LAB_SERVICE_URL', 'http://localhost')  # URL to the lab service

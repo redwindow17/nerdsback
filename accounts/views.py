@@ -26,202 +26,157 @@ from .serializers import (
 from .models import UserProfile, PasswordResetToken, EmailVerificationToken
 
 class RegisterView(generics.CreateAPIView):
-    queryset = User.objects.all()
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []  # No authentication required for registration
+    authentication_classes = []
     serializer_class = RegisterSerializer
     
-    def options(self, request, *args, **kwargs):
-        response = Response()
-        response["Allow"] = "POST,OPTIONS"
-        return response
-
     def create(self, request, *args, **kwargs):
-        # Print request data for debugging
-        print("Register request data:", request.data)
-        
         serializer = self.get_serializer(data=request.data)
         try:
             serializer.is_valid(raise_exception=True)
-            user = serializer.save()
             
-            # Send email verification instead of directly logging in user
-            self.send_verification_email(user)
+            # Use transaction.atomic to ensure data consistency
+            from django.db import transaction
+            with transaction.atomic():
+                user = serializer.save()
+                
+                # Create verification token inside transaction
+                token = EmailVerificationToken.objects.create(user=user)
+                
+                # Send verification email asynchronously
+                self.send_verification_email_async(user, token)
             
             return Response({
                 "message": "Registration successful. Please check your email to verify your account.",
                 "user": UserSerializer(user, context=self.get_serializer_context()).data,
             }, status=status.HTTP_201_CREATED)
+            
         except serializers.ValidationError as e:
-            # Handle validation errors with better messages (existing code)
             errors = e.detail
-            
-            # Handle password validation errors with more specific messages
             if 'password' in errors:
-                password_errors = errors['password']
-                
-                # Check for common validation error patterns and provide better messages
-                for i, error in enumerate(password_errors):
-                    error_str = str(error)
-                    
-                    if "similar to" in error_str:
-                        password_errors[i] = "Your password is too similar to your personal information. Please choose a more unique password."
-                    elif "too common" in error_str or "commonly used password" in error_str:
-                        password_errors[i] = "The password you chose is too common. Please choose a stronger password."
-                    elif "entirely numeric" in error_str:
-                        password_errors[i] = "Your password cannot consist of only numbers. Please include letters or special characters."
-                    elif "too short" in error_str:
-                        password_errors[i] = "Your password is too short. It must contain at least 8 characters."
-                    elif "keyboard pattern" in error_str or "common pattern" in error_str or "predictable pattern" in error_str:
-                        password_errors[i] = "Your password uses a common guessable pattern. Please use a more unique combination."
-                    elif "common word" in error_str:
-                        password_errors[i] = "Your password contains a common word that makes it easily guessable. Please choose a stronger password."
-                    elif "l33t speak" in error_str or "leet_pattern" in error_str or "leet_word" in error_str:
-                        password_errors[i] = "Your password uses common letter-to-symbol substitutions (like '@' for 'a'). Please use a more unique combination."
-                    elif "alternating case" in error_str:
-                        password_errors[i] = "Your password uses an alternating case pattern (like 'QwErTy'). Please use a more unique combination."
-                
-                errors['password'] = password_errors
-            
-            # Print specific validation errors for debugging
-            print("Specific validation errors:", errors)
+                errors['password'] = self.get_friendly_password_errors(errors['password'])
             return Response(errors, status=status.HTTP_400_BAD_REQUEST)
     
-    def send_verification_email(self, user):
-        # Get the latest token for this user
-        token = EmailVerificationToken.objects.filter(user=user).latest('created_at')
+    def get_friendly_password_errors(self, password_errors):
+        friendly_messages = []
+        for error in password_errors:
+            error_str = str(error)
+            if "similar to" in error_str:
+                friendly_messages.append("Your password is too similar to your personal information")
+            elif "too common" in error_str:
+                friendly_messages.append("Please choose a stronger password")
+            elif "entirely numeric" in error_str:
+                friendly_messages.append("Include letters or special characters")
+            elif "too short" in error_str:
+                friendly_messages.append("Password must be at least 8 characters")
+            else:
+                friendly_messages.append(error_str)
+        return friendly_messages
+    
+    def send_verification_email_async(self, user, token):
+        from threading import Thread
+        from django.core.cache import cache
         
-        # Prepare email with template
-        verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token.token}"
-        context = {
-            'verify_url': verify_url,
-            'user': user,
-            'expiry_hours': 48,  # Token expiry in hours
-        }
+        def send_email():
+            # Cache the verification status for 48 hours
+            cache_key = f'email_verification_{token.token}'
+            cache.set(cache_key, {'is_valid': True}, timeout=48*3600)
+            
+            verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token.token}"
+            context = {
+                'verify_url': verify_url,
+                'user': user,
+                'expiry_hours': 48,
+            }
+            
+            html_content = render_to_string('emails/email_verification.html', context)
+            text_content = strip_tags(html_content)
+            
+            msg = EmailMultiAlternatives(
+                'Verify Your NerdsLab Account',
+                text_content,
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email]
+            )
+            msg.attach_alternative(html_content, "text/html")
+            msg.send()
         
-        # Render HTML email template
-        html_content = render_to_string('emails/email_verification.html', context)
-        text_content = strip_tags(html_content)  # Generate plain text version
-        
-        # Create email
-        subject = 'Verify Your NerdsLab Account'
-        from_email = settings.DEFAULT_FROM_EMAIL
-        to = [user.email]
-        
-        msg = EmailMultiAlternatives(subject, text_content, from_email, to)
-        msg.attach_alternative(html_content, "text/html")
-        
-        # Send email
-        msg.send()
-        
-        print(f"Verification email sent to {user.email} with token {token.token}")
+        # Start email sending in background
+        Thread(target=send_email).start()
 
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []  # No authentication required for login
+    authentication_classes = []
     
-    def options(self, request, *args, **kwargs):
-        response = Response()
-        response["Allow"] = "POST,OPTIONS"
-        return response
-        
     def post(self, request):
-        # Debug request information
-        print("Login request headers:", request.headers)
-        print("Login request method:", request.method)
-        print("Login request path:", request.path)
-        print("Login request user:", request.user)
-        print("Login request data:", request.data)
-        
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
-            # Print validation errors for debugging
-            print("Login validation errors:", serializer.errors)
-            response = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            return response
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         username = serializer.validated_data['username']
         password = serializer.validated_data['password']
         
-        # First check if the user exists regardless of authentication
+        # Use select_related to get user in a single query
         try:
-            user_obj = User.objects.get(username=username)
+            user = User.objects.select_related('auth_token').get(username=username)
             
-            # If user exists but is not active, handle accordingly
-            if not user_obj.is_active:
-                # Try to authenticate to verify password is correct
-                if not authenticate(username=username, password=password):
-                    response = Response(
-                        {"non_field_errors": ["Invalid credentials"]},
-                        status=status.HTTP_401_UNAUTHORIZED
-                    )
-                    return response
-                    
-                # Password is correct but user is not verified
-                # Create a new verification token
-                old_tokens = EmailVerificationToken.objects.filter(user=user_obj, is_used=False)
-                for token in old_tokens:
-                    token.is_used = True
-                    token.save()
-                    
-                token = EmailVerificationToken.objects.create(user=user_obj)
-                
-                # Send a new verification email
-                verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token.token}"
-                context = {
-                    'verify_url': verify_url,
-                    'user': user_obj,
-                    'expiry_hours': 48,  # Token expiry in hours
-                }
-                
-                # Render HTML email template
-                html_content = render_to_string('emails/email_verification.html', context)
-                text_content = strip_tags(html_content)  # Generate plain text version
-                
-                # Create email
-                subject = 'Verify Your NerdsLab Account'
-                from_email = settings.DEFAULT_FROM_EMAIL
-                to = [user_obj.email]
-                
-                msg = EmailMultiAlternatives(subject, text_content, from_email, to)
-                msg.attach_alternative(html_content, "text/html")
-                
-                # Send email
-                msg.send()
-                
-                print(f"Unverified account login attempt: {username}")
-                response = Response(
-                    {
-                        "non_field_errors": ["Your account is not active. We've sent you a new verification email. Please check your inbox."],
-                        "account_status": "unverified",
-                        "email": user_obj.email
-                    },
+            if not user.check_password(password):
+                return Response(
+                    {"non_field_errors": ["Invalid credentials"]},
                     status=status.HTTP_401_UNAUTHORIZED
                 )
-                return response
-        except User.DoesNotExist:
-            # Continue with normal authentication flow
-            pass
             
-        # Normal authentication flow
-        user = authenticate(username=username, password=password)
-        
-        if user:
+            if not user.is_active:
+                # Resend verification email using a background task
+                token = EmailVerificationToken.objects.create(user=user)
+                self.send_verification_email_async(user, token)
+                
+                return Response({
+                    "non_field_errors": ["Your account is not active. We've sent you a new verification email."],
+                    "account_status": "unverified",
+                    "email": user.email
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            # Get or create token efficiently
+            token = getattr(user, 'auth_token', None)
+            if not token:
+                token = Token.objects.create(user=user)
+            
             login(request, user)
-            token, created = Token.objects.get_or_create(user=user)
-            
-            response = Response({
+            return Response({
                 "user": UserSerializer(user).data,
                 "token": token.key,
                 "message": "Login successful"
             })
-            return response
-        else:
-            response = Response(
+            
+        except User.DoesNotExist:
+            return Response(
                 {"non_field_errors": ["Invalid credentials"]},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-            return response
+    
+    def send_verification_email_async(self, user, token):
+        from threading import Thread
+        
+        def send_email():
+            verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token.token}"
+            context = {
+                'verify_url': verify_url,
+                'user': user,
+                'expiry_hours': 48,
+            }
+            
+            html_content = render_to_string('emails/email_verification.html', context)
+            text_content = strip_tags(html_content)
+            
+            msg = EmailMultiAlternatives(
+                'Verify Your NerdsLab Account',
+                text_content,
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email]
+            )
+            msg.attach_alternative(html_content, "text/html")
+            msg.send()
 
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -483,44 +438,54 @@ class ChangePasswordView(APIView):
 
 class EmailVerificationView(APIView):
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []  # No authentication required for email verification
+    authentication_classes = []
     
     def post(self, request):
-        print("Email verification request received:", request.data)
         serializer = EmailVerificationSerializer(data=request.data)
         if not serializer.is_valid():
-            print("Serializer validation failed:", serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         token_str = str(serializer.validated_data['token'])
-        print(f"Processing verification token: {token_str}")
+        
+        # Check cache first
+        from django.core.cache import cache
+        cache_key = f'email_verification_{token_str}'
+        cached_result = cache.get(cache_key)
+        
+        if cached_result and not cached_result.get('is_valid'):
+            return Response(
+                {'error': 'Verification link is invalid or has expired'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         try:
-            token = EmailVerificationToken.objects.get(token=token_str)
-            print(f"Found token for user: {token.user.username}, is_used: {token.is_used}, expires_at: {token.expires_at}")
+            # Use select_related to get user in a single query
+            token = EmailVerificationToken.objects.select_related('user').get(token=token_str)
             
             if not token.is_valid():
-                print(f"Token is invalid: is_used={token.is_used}, expires_at={token.expires_at}, now={timezone.now()}")
+                # Cache invalid token result
+                cache.set(cache_key, {'is_valid': False}, timeout=48*3600)
                 return Response(
                     {'error': 'Verification link is invalid or has expired'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Activate the user account
-            user = token.user
-            print(f"User before activation: {user.username}, is_active={user.is_active}")
-            user.is_active = True
-            user.save()
-            print(f"User after activation: {user.username}, is_active={user.is_active}")
+            # Use transaction to ensure atomicity
+            from django.db import transaction
+            with transaction.atomic():
+                user = token.user
+                user.is_active = True
+                user.save()
+                
+                # Mark token as used
+                token.is_used = True
+                token.save()
+                
+                # Generate authentication token for the user
+                auth_token, _ = Token.objects.get_or_create(user=user)
             
-            # Mark token as used
-            token.is_used = True
-            token.save()
-            print(f"Token marked as used: {token.token}, is_used={token.is_used}")
-            
-            # Generate authentication token for the user
-            auth_token, created = Token.objects.get_or_create(user=user)
-            print(f"Generated auth token: {auth_token.key}, created={created}")
+            # Cache the verification result
+            cache.delete(cache_key)
             
             return Response({
                 'message': 'Email verified successfully. Your account is now active.',
@@ -529,15 +494,13 @@ class EmailVerificationView(APIView):
             })
             
         except EmailVerificationToken.DoesNotExist:
-            print(f"Token not found: {token_str}")
+            # Cache negative result
+            cache.set(cache_key, {'is_valid': False}, timeout=48*3600)
             return Response(
                 {'error': 'Invalid verification token'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
-            print(f"Verification error: {str(e)}")
-            import traceback
-            traceback.print_exc()
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -551,28 +514,40 @@ class EmailVerificationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Check cache first
+        from django.core.cache import cache
+        cache_key = f'email_verification_{token}'
+        cached_result = cache.get(cache_key)
+        
+        if cached_result is not None:
+            return Response(
+                {'is_valid': cached_result.get('is_valid', False)},
+                status=status.HTTP_200_OK
+            )
+        
         try:
             token_obj = EmailVerificationToken.objects.get(token=token)
+            is_valid = token_obj.is_valid()
             
-            if not token_obj.is_valid():
+            # Cache the result
+            cache.set(cache_key, {'is_valid': is_valid}, timeout=48*3600)
+            
+            if not is_valid:
                 return Response(
                     {'is_valid': False, 'error': 'Verification link is invalid or has expired'},
                     status=status.HTTP_200_OK
                 )
-                
+            
             return Response(
                 {'is_valid': True},
                 status=status.HTTP_200_OK
             )
             
         except EmailVerificationToken.DoesNotExist:
+            # Cache negative result
+            cache.set(cache_key, {'is_valid': False}, timeout=48*3600)
             return Response(
                 {'is_valid': False, 'error': 'Invalid verification token'},
-                status=status.HTTP_200_OK
-            )
-        except Exception as e:
-            return Response(
-                {'is_valid': False, 'error': str(e)},
                 status=status.HTTP_200_OK
             )
 
