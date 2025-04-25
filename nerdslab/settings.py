@@ -43,10 +43,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # Must be first!
-    'django.middleware.common.CommonMiddleware',  # Move this right after CorsMiddleware
     'nerdslab.middleware.CloudflareProxyMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -78,7 +78,7 @@ WSGI_APPLICATION = 'nerdslab.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': os.path.join('/var/www/nerdsback', 'db.sqlite3') if not DEBUG else BASE_DIR / 'db.sqlite3',
     }
 }
 
@@ -161,21 +161,18 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = False  # Handled by Cloudflare
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-CSRF_USE_SESSIONS = False  # Store CSRF token in cookie instead of session
-CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access to CSRF token
-CSRF_COOKIE_SAMESITE = 'Lax'  # Allow cross-site requests while maintaining security
-CSRF_TRUSTED_ORIGINS = [
-    'https://learn.nerdslab.in',
-    'https://labs.nerdslab.in',
-]
 
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://learn.nerdslab.in',
     'https://learn.nerdslab.in',
-    'https://labs.nerdslab.in',
+    'http://labs.nerdslab.in',
+    'https://labs.nerdslab.in'
 ]
-CORS_ALLOW_CREDENTIALS = True
 
+CORS_ALLOW_CREDENTIALS = True
 CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
 
 CORS_ALLOW_METHODS = [
@@ -197,19 +194,41 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'cf-connecting-ip',
+    'cf-ipcountry',
+    'cf-ray',
+    'cf-visitor',
+    'access-control-request-headers',
+    'access-control-request-method',
 ]
 
-# Ensure CSRF token is included in the response headers
+# Ensure CORS headers are exposed
 CORS_EXPOSE_HEADERS = [
-    'x-csrftoken',
-    'content-type',
-    'content-length',
+    'access-control-allow-origin',
+    'access-control-allow-credentials',
+    'access-control-allow-methods',
+    'access-control-allow-headers',
 ]
+
+# CORS preflight settings
+CORS_REPLACE_HTTPS_REFERER = False
+CORS_URLS_REGEX = r'^/api/.*$'  # Only apply CORS to API endpoints
+CORS_ORIGIN_ALLOW_ALL = False
 
 # Extended security headers
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
+
+# CSRF Settings
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://learn.nerdslab.in',
+    'https://learn.nerdslab.in',
+    'http://labs.nerdslab.in',
+    'https://labs.nerdslab.in'
+]
 
 # Frontend URL for password reset links
 FRONTEND_URL = 'https://learn.nerdslab.in'
@@ -255,6 +274,7 @@ if DEBUG:
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
+    CORS_REPLACE_HTTPS_REFERER = True
 
 # Ensure your API endpoints are correctly defined
 # Check your views and URLs to ensure they are set up correctly
@@ -292,15 +312,3 @@ LOGGING = {
         },
     },
 }
-
-# Add middleware for handling OPTIONS requests
-def handle_options_request(request, response):
-    if request.method == 'OPTIONS':
-        response['Access-Control-Allow-Methods'] = 'DELETE, GET, OPTIONS, PATCH, POST, PUT'
-        response['Access-Control-Allow-Headers'] = 'accept, accept-encoding, authorization, content-type, dnt, origin, user-agent, x-csrftoken, x-requested-with'
-        response['Access-Control-Max-Age'] = '86400'
-        response['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
-        response['Access-Control-Allow-Credentials'] = 'true'
-        response['Content-Type'] = 'text/plain; charset=UTF-8'
-        response['Content-Length'] = '0'
-        return response

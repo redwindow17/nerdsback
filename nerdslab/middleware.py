@@ -13,10 +13,32 @@ class ApiCsrfExemptMiddleware(MiddlewareMixin):
             setattr(request, '_dont_enforce_csrf_checks', True)
         return None
 
+class CorsHeadersMiddleware:
+    """
+    Middleware to add CORS headers to all responses to ensure proper cross-origin access
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        
+        # Add CORS headers to all responses
+        response["Access-Control-Allow-Origin"] = "https://learn.nerdslab.in"
+        response["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, X-CSRFToken"
+        response["Access-Control-Allow-Credentials"] = "true"
+        
+        # Handle preflight OPTIONS requests
+        if request.method == 'OPTIONS':
+            response["Access-Control-Max-Age"] = "86400"  # 24 hours
+            if not response.content:  # If it's a pure OPTIONS request
+                response.content = b''
+                response.status_code = 200
+        
+        return response
+
 class CorsDebugMiddleware:
-    """
-    Middleware to log CORS-related headers for debugging
-    """
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -39,7 +61,7 @@ class CorsDebugMiddleware:
 
 class CloudflareProxyMiddleware:
     """
-    Middleware to handle Cloudflare proxy headers
+    Middleware to handle Cloudflare proxy headers and ensure proper CORS handling
     """
     def __init__(self, get_response):
         self.get_response = get_response
@@ -59,4 +81,18 @@ class CloudflareProxyMiddleware:
             except:
                 pass
 
-        return self.get_response(request)
+        response = self.get_response(request)
+        
+        # Ensure CORS headers are present
+        if 'HTTP_ORIGIN' in request.META:
+            origin = request.META['HTTP_ORIGIN']
+            if origin in ['https://learn.nerdslab.in', 'https://labs.nerdslab.in']:
+                response['Access-Control-Allow-Origin'] = origin
+                response['Access-Control-Allow-Credentials'] = 'true'
+                
+                if request.method == 'OPTIONS':
+                    response['Access-Control-Allow-Methods'] = 'DELETE, GET, OPTIONS, PATCH, POST, PUT'
+                    response['Access-Control-Allow-Headers'] = 'accept, accept-encoding, authorization, content-type, dnt, origin, user-agent, x-csrftoken, x-requested-with'
+                    response['Access-Control-Max-Age'] = '86400'
+                    
+        return response
