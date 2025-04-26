@@ -88,14 +88,11 @@ DATABASES = {
 # Database optimization settings
 CONN_MAX_AGE = 60  # Keep database connections alive for 60 seconds
 
-# Cache settings for better performance
+# Cache settings for development
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/1',  # Change this in production
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
     }
 }
 
@@ -184,6 +181,7 @@ SECURE_SSL_REDIRECT = False  # Handled by Cloudflare
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
+# CORS configuration
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
@@ -232,10 +230,15 @@ CORS_EXPOSE_HEADERS = [
     'access-control-allow-headers',
 ]
 
-# CORS preflight settings
-CORS_REPLACE_HTTPS_REFERER = False
+# CORS and API configuration
 CORS_URLS_REGEX = r'^/api/.*$'  # Only apply CORS to API endpoints
 CORS_ORIGIN_ALLOW_ALL = False
+
+# Development settings
+if DEBUG:
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
 
 # Extended security headers
 SECURE_BROWSER_XSS_FILTER = True
@@ -305,7 +308,6 @@ if DEBUG:
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
-    CORS_REPLACE_HTTPS_REFERER = True
 
 # Ensure your API endpoints are correctly defined
 # Check your views and URLs to ensure they are set up correctly
