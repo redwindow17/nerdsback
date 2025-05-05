@@ -1,5 +1,6 @@
 from django.utils.deprecation import MiddlewareMixin
 import logging
+from django.http import HttpResponse
 
 logger = logging.getLogger(__name__)
 
@@ -21,21 +22,30 @@ class CorsHeadersMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        response = self.get_response(request)
-        
-        # Add CORS headers to all responses
-        response["Access-Control-Allow-Origin"] = "https://learn.nerdslab.in"
-        response["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, X-CSRFToken"
-        response["Access-Control-Allow-Credentials"] = "true"
-        
-        # Handle preflight OPTIONS requests
         if request.method == 'OPTIONS':
-            response["Access-Control-Max-Age"] = "86400"  # 24 hours
-            if not response.content:  # If it's a pure OPTIONS request
-                response.content = b''
-                response.status_code = 200
+            response = HttpResponse()
+            response.status_code = 200
+        else:
+            response = self.get_response(request)
+
+        # Add CORS headers to all responses
+        origin = request.headers.get('Origin')
+        allowed_origins = [
+            'https://learn.nerdslab.in',
+            'https://labs.nerdslab.in',
+            'http://localhost:3000'
+        ]
         
+        if origin in allowed_origins:
+            response["Access-Control-Allow-Origin"] = origin
+            response["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            response["Access-Control-Allow-Headers"] = (
+                "Accept, Accept-Encoding, Authorization, Content-Type, "
+                "DNT, Origin, User-Agent, X-CSRFToken, X-Requested-With"
+            )
+            response["Access-Control-Allow-Credentials"] = "true"
+            response["Access-Control-Max-Age"] = "86400"  # 24 hours
+
         return response
 
 class CorsDebugMiddleware:

@@ -1,4 +1,5 @@
 import os
+import stat
 from pathlib import Path
 import dotenv
 
@@ -28,7 +29,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'nerdslab.cors_middleware.CorsMiddleware',  # Must be first
     'corsheaders.middleware.CorsMiddleware',
+    'nerdslab.cors_middleware.SecurityHeadersMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -63,24 +66,46 @@ WSGI_APPLICATION = 'nerdslab.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': os.path.join('/var/www/nerdsback', 'db.sqlite3') if not DEBUG else BASE_DIR / 'db.sqlite3',
         'OPTIONS': {
-            'timeout': 30,  # Increase SQLite timeout for concurrent operations
+            'timeout': 30,
+            'isolation_level': 'IMMEDIATE',
+            'journal_mode': 'WAL',
+            'cache_size': -64 * 1000,
+            'strict': False,  # Allow operation even with less restrictive permissions
         },
-        'ATOMIC_REQUESTS': True,  # Ensure transactions are atomic
+        'ATOMIC_REQUESTS': True,
     }
 }
 
-# Ensure SQLite file permissions are secure
-db_path = BASE_DIR / 'db.sqlite3'
-if os.path.exists(db_path):
-    os.chmod(db_path, 0o600)
+# Ensure SQLite file permissions are secure - with error handling
+db_path = os.path.join('/var/www/nerdsback', 'db.sqlite3') if not DEBUG else BASE_DIR / 'db.sqlite3'
+try:
+    if os.path.exists(db_path):
+        current_mode = stat.S_IMODE(os.stat(db_path).st_mode)
+        if current_mode != 0o600:
+            try:
+                os.chmod(db_path, 0o600)
+            except PermissionError:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"Could not set SQLite database permissions to 600. Current permissions: {oct(current_mode)}. "
+                    "Please ensure the database file has correct permissions manually."
+                )
+except Exception as e:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning(f"Error checking SQLite database permissions: {e}")
 
 # Configure SQLite to handle concurrent connections
-CONN_MAX_AGE = None  # Persistent connections
-DATABASE_OPTIONS = {
-    'timeout': 30,
-}
+CONN_MAX_AGE = 60  # Persistent connections
+SQLITE_PRAGMAS = [
+    'PRAGMA busy_timeout = 30000;',
+    'PRAGMA synchronous = NORMAL;',
+    'PRAGMA temp_store = MEMORY;',
+    'PRAGMA mmap_size = 268435456;',
+]
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -168,9 +193,10 @@ REST_FRAMEWORK = {
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     'https://learn.nerdslab.in',
-    'http://localhost:3000',
+    'http://localhost:3000'
 ]
-CORS_URLS_REGEX = r'^/api/.*$'
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
+CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 
 # Email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

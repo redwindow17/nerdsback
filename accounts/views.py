@@ -9,10 +9,12 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 import os
 from rest_framework import serializers
 from django.utils import timezone
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
 
 from .serializers import (
@@ -25,12 +27,18 @@ from .serializers import (
 )
 from .models import UserProfile, PasswordResetToken, EmailVerificationToken
 
+@method_decorator(csrf_exempt, name='dispatch')
 class RegisterView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
     serializer_class = RegisterSerializer
     
+    def options(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_200_OK)
+    
     def create(self, request, *args, **kwargs):
+        # Log registration attempt
+        print(f"Register request data: {request.data}")
         serializer = self.get_serializer(data=request.data)
         try:
             serializer.is_valid(raise_exception=True)
@@ -55,6 +63,8 @@ class RegisterView(generics.CreateAPIView):
             errors = e.detail
             if 'password' in errors:
                 errors['password'] = self.get_friendly_password_errors(errors['password'])
+            # Log validation errors
+            print(f"Specific validation errors: {errors}")
             return Response(errors, status=status.HTTP_400_BAD_REQUEST)
     
     def get_friendly_password_errors(self, password_errors):
@@ -127,79 +137,42 @@ class RegisterView(generics.CreateAPIView):
         # Start email sending in background
         Thread(target=send_email).start()
 
+@method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
+    serializer_class = LoginSerializer
     
-    def post(self, request):
+    def options(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        # Log login attempt headers for debugging
+        print(f"Login request headers: {dict(request.headers)}")
+        
         serializer = LoginSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        username = serializer.validated_data['username']
-        password = serializer.validated_data['password']
-        
-        # Use select_related to get user in a single query
-        try:
-            user = User.objects.select_related('auth_token').get(username=username)
+        if serializer.is_valid():
+            username = serializer.validated_data['username']
+            password = serializer.validated_data['password']
+            user = authenticate(username=username, password=password)
             
-            if not user.check_password(password):
-                return Response(
-                    {"non_field_errors": ["Invalid credentials"]},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
-            
-            if not user.is_active:
-                # Resend verification email using a background task
-                token = EmailVerificationToken.objects.create(user=user)
-                self.send_verification_email_async(user, token)
+            if user:
+                if not user.is_active:
+                    return Response({
+                        "error": "Account is not active. Please verify your email."
+                    }, status=status.HTTP_403_FORBIDDEN)
                 
+                login(request, user)
+                token, created = Token.objects.get_or_create(user=user)
                 return Response({
-                    "non_field_errors": ["Your account is not active. We've sent you a new verification email."],
-                    "account_status": "unverified",
-                    "email": user.email
-                }, status=status.HTTP_401_UNAUTHORIZED)
-            
-            # Get or create token efficiently
-            token = getattr(user, 'auth_token', None)
-            if not token:
-                token = Token.objects.create(user=user)
-            
-            login(request, user)
+                    "token": token.key,
+                    "user": UserSerializer(user).data
+                })
             return Response({
-                "user": UserSerializer(user).data,
-                "token": token.key,
-                "message": "Login successful"
-            })
+                "error": "Invalid credentials"
+            }, status=status.HTTP_401_UNAUTHORIZED)
             
-        except User.DoesNotExist:
-            return Response(
-                {"non_field_errors": ["Invalid credentials"]},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-    
-    def send_verification_email_async(self, user, token):
-        from threading import Thread
-        
-        def send_email():
-            verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token.token}"
-            context = {
-                'verify_url': verify_url,
-                'user': user,
-                'expiry_hours': 48,
-            }
-            
-            html_content = render_to_string('emails/email_verification.html', context)
-            text_content = strip_tags(html_content)
-            
-            msg = EmailMultiAlternatives(
-                'Verify Your NerdsLab Account',
-                text_content,
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email]
-            )
-            msg.attach_alternative(html_content, "text/html")
-            msg.send()
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]

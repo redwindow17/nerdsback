@@ -3,10 +3,6 @@
 # Create necessary directories
 mkdir -p logs media staticfiles backups/sqlite
 
-# Set up SQLite database with proper permissions
-touch db.sqlite3
-chmod 600 db.sqlite3
-
 # Set up logging directories with proper permissions
 mkdir -p logs
 chmod 755 logs
@@ -16,23 +12,46 @@ chmod 644 logs/auth_service.log logs/email_service.log
 # Make backup script executable
 chmod +x scripts/backup_sqlite.sh
 
+# Set up SQLite database with proper permissions if we have access
+DB_PATH="/var/www/nerdsback/db.sqlite3"
+if [ ! -f "$DB_PATH" ]; then
+    touch "$DB_PATH"
+    if [ $? -eq 0 ]; then
+        chmod 600 "$DB_PATH" || echo "Warning: Could not set database permissions. Please ensure correct permissions manually."
+    else
+        echo "Warning: Could not create database file. Please ensure the file exists with correct permissions."
+    fi
+fi
+
 # Run migrations
 python manage.py migrate --noinput
 
 # Collect static files
 python manage.py collectstatic --noinput
 
-# Start Gunicorn with SQLite optimizations
-# Using fewer workers and threads to prevent SQLite locks
-gunicorn nerdslab.wsgi:application \
+# Apply SQLite optimizations if we have write access
+if [ -w "$DB_PATH" ]; then
+    sqlite3 "$DB_PATH" << EOF
+PRAGMA journal_mode = WAL;
+PRAGMA synchronous = NORMAL;
+PRAGMA temp_store = MEMORY;
+PRAGMA mmap_size = 268435456;
+PRAGMA cache_size = -64000;
+PRAGMA busy_timeout = 30000;
+EOF
+else
+    echo "Warning: Could not apply SQLite optimizations. Database file is not writable."
+fi
+
+# Start Gunicorn with SQLite-optimized settings
+exec gunicorn nerdslab.wsgi:application \
     --bind 0.0.0.0:8000 \
-    --workers 2 \
-    --threads 2 \
+    --workers 3 \
+    --threads 4 \
     --worker-class gthread \
-    --timeout 120 \
+    --worker-tmp-dir /dev/shm \
     --max-requests 1000 \
     --max-requests-jitter 50 \
-    --access-logfile logs/gunicorn-access.log \
-    --error-logfile logs/gunicorn-error.log \
-    --capture-output \
-    --enable-stdio-inheritance
+    --timeout 120 \
+    --keepalive 75 \
+    --log-level info

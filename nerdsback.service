@@ -1,0 +1,21 @@
+[Unit]
+Description=Gunicorn instance to serve NerdsLab Django backend
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/nerdsback
+Environment="PATH=/var/www/nerdsback/venv/bin"
+Environment="DJANGO_SETTINGS_MODULE=nerdslab.settings"
+ExecStart=/var/www/nerdsback/venv/bin/gunicorn \
+    --workers 3 \
+    --threads 4 \
+    --worker-class gthread \
+    --worker-tmp-dir /dev/shm \
+    --bind unix:/var/www/nerdsback/nerdsback.sock \
+    --umask 007 \
+    nerdslab.wsgi:application
+
+[Install]
+WantedBy=multi-user.target
