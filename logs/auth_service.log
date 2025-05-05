@@ -601,3 +601,21 @@ ERROR 2025-05-05 08:35:25,004 basehttp 18728 18792 You're accessing the developm
 INFO 2025-05-05 08:35:25,005 basehttp 18728 8276 code 400, message Bad HTTP/0.9 request type ('\x16\x03\x01\x06à\x01\x00\x06Ü\x03\x03\x94.\x08³f\x9bõ\x91uÚÌVH´\x82íþ\x91éî"\x7fê½"\x83c(NB[ä')
 ERROR 2025-05-05 08:35:25,005 basehttp 18728 8276 You're accessing the development server over HTTPS, but it only supports HTTP.
 INFO 2025-05-05 08:53:56,375 autoreload 13388 20612 Watching for file changes with StatReloader
+INFO 2025-05-05 13:00:37,256 autoreload 12684 20580 Watching for file changes with StatReloader
+INFO 2025-05-05 13:01:36,989 autoreload 12684 20580 C:\fun\server v3\server 1\nerdslab_backend\nerdslab\settings.py changed, reloading.
+INFO 2025-05-05 13:01:37,825 autoreload 8048 21200 Watching for file changes with StatReloader
+INFO 2025-05-05 13:02:45,150 autoreload 23812 24860 Watching for file changes with StatReloader
+INFO 2025-05-05 13:13:39,101 autoreload 12376 25300 Watching for file changes with StatReloader
+INFO 2025-05-05 13:14:11,566 autoreload 8048 21200 C:\fun\server v3\server 1\nerdslab_backend\nerdslab\settings.py changed, reloading.
+INFO 2025-05-05 13:14:11,804 autoreload 12376 25300 C:\fun\server v3\server 1\nerdslab_backend\nerdslab\settings.py changed, reloading.
+INFO 2025-05-05 13:14:12,355 autoreload 23992 4124 Watching for file changes with StatReloader
+INFO 2025-05-05 13:14:12,594 autoreload 468 23640 Watching for file changes with StatReloader
+INFO 2025-05-05 13:14:47,860 autoreload 13512 4400 Watching for file changes with StatReloader
+INFO 2025-05-05 13:14:56,917 basehttp 23992 23136 code 400, message Bad request version ("Cð×¼jk]sÅ'Ý:7\x97£åD¹¥¯\x01")
+ERROR 2025-05-05 13:14:56,917 basehttp 23992 23136 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 13:14:56,919 basehttp 23992 2760 code 400, message Bad request version ('ÉF·\x9bºf¯½B±GH<\x00\x05\x00\x05\x01\x00\x00\x00\x00\x003\x04ï\x04íÊÊ\x00\x01\x00\x11ì\x04ÀÖ')
+ERROR 2025-05-05 13:14:56,920 basehttp 23992 2760 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 13:17:11,905 basehttp 23992 13696 code 400, message Bad request version ('\x00\x12\x00\x10\x04\x03\x08\x04\x04\x01\x05\x03\x08\x05\x05\x01\x08\x06\x06\x01DÍ\x00\x05\x00\x03\x02h2\x00\x1b\x00\x03\x02\x00\x02\x00-\x00\x02\x01\x01\x003\x04ï\x04í')
+ERROR 2025-05-05 13:17:11,905 basehttp 23992 13696 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 13:17:11,906 basehttp 23992 19032 code 400, message Bad request version ('\x013±Í\x81{')
+ERROR 2025-05-05 13:17:11,907 basehttp 23992 19032 You're accessing the development server over HTTPS, but it only supports HTTP.

@@ -29,15 +29,20 @@ python manage.py migrate --noinput
 # Collect static files
 python manage.py collectstatic --noinput
 
-# Apply SQLite optimizations if we have write access
+# Apply SQLite optimizations if we have write access to the database
 if [ -w "$DB_PATH" ]; then
-    sqlite3 "$DB_PATH" << EOF
-PRAGMA journal_mode = WAL;
-PRAGMA synchronous = NORMAL;
-PRAGMA temp_store = MEMORY;
-PRAGMA mmap_size = 268435456;
-PRAGMA cache_size = -64000;
-PRAGMA busy_timeout = 30000;
+    echo "Applying SQLite optimizations..."
+    python - << EOF
+import sqlite3
+conn = sqlite3.connect('$DB_PATH')
+c = conn.cursor()
+c.execute('PRAGMA journal_mode = WAL')
+c.execute('PRAGMA synchronous = NORMAL')
+c.execute('PRAGMA temp_store = MEMORY')
+c.execute('PRAGMA mmap_size = 268435456')
+c.execute('PRAGMA cache_size = -64000')
+c.execute('PRAGMA busy_timeout = 30000')
+conn.close()
 EOF
 else
     echo "Warning: Could not apply SQLite optimizations. Database file is not writable."

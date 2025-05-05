@@ -66,20 +66,16 @@ WSGI_APPLICATION = 'nerdslab.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join('/var/www/nerdsback', 'db.sqlite3') if not DEBUG else BASE_DIR / 'db.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',  # Always use local path for development
         'OPTIONS': {
             'timeout': 30,
-            'isolation_level': 'IMMEDIATE',
-            'journal_mode': 'WAL',
-            'cache_size': -64 * 1000,
-            'strict': False,  # Allow operation even with less restrictive permissions
         },
         'ATOMIC_REQUESTS': True,
     }
 }
 
 # Ensure SQLite file permissions are secure - with error handling
-db_path = os.path.join('/var/www/nerdsback', 'db.sqlite3') if not DEBUG else BASE_DIR / 'db.sqlite3'
+db_path = BASE_DIR / 'db.sqlite3'
 try:
     if os.path.exists(db_path):
         current_mode = stat.S_IMODE(os.stat(db_path).st_mode)
@@ -98,14 +94,7 @@ except Exception as e:
     logger = logging.getLogger(__name__)
     logger.warning(f"Error checking SQLite database permissions: {e}")
 
-# Configure SQLite to handle concurrent connections
-CONN_MAX_AGE = 60  # Persistent connections
-SQLITE_PRAGMAS = [
-    'PRAGMA busy_timeout = 30000;',
-    'PRAGMA synchronous = NORMAL;',
-    'PRAGMA temp_store = MEMORY;',
-    'PRAGMA mmap_size = 268435456;',
-]
+# SQLite performance optimizations will be applied at runtime through start.sh
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
