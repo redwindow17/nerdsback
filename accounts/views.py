@@ -76,6 +76,13 @@ class RegisterView(generics.CreateAPIView):
     def send_verification_email_async(self, user, token):
         from threading import Thread
         from django.core.cache import cache
+        import time
+        from smtplib import SMTPException
+        from socket import timeout as SocketTimeout
+        from django.conf import settings
+        import logging
+        
+        logger = logging.getLogger('accounts')
         
         def send_email():
             # Cache the verification status for 48 hours
@@ -96,10 +103,26 @@ class RegisterView(generics.CreateAPIView):
                 'Verify Your NerdsLab Account',
                 text_content,
                 settings.DEFAULT_FROM_EMAIL,
-                [user.email]
+                [user.email],
+                connection=get_connection(timeout=settings.EMAIL_TIMEOUT)
             )
             msg.attach_alternative(html_content, "text/html")
-            msg.send()
+            
+            # Implement retry mechanism
+            for attempt in range(settings.SMTP_MAX_RETRIES):
+                try:
+                    msg.send()
+                    logger.info(f"Verification email sent successfully to {user.email}")
+                    return
+                except (SMTPException, SocketTimeout) as e:
+                    if attempt < settings.SMTP_MAX_RETRIES - 1:
+                        logger.warning(f"Email sending failed (attempt {attempt + 1}): {str(e)}")
+                        time.sleep(settings.SMTP_RETRY_DELAY)
+                    else:
+                        logger.error(f"All email sending attempts failed for {user.email}: {str(e)}")
+                except Exception as e:
+                    logger.error(f"Unexpected error sending email to {user.email}: {str(e)}")
+                    break
         
         # Start email sending in background
         Thread(target=send_email).start()
@@ -586,18 +609,49 @@ class ResendVerificationEmailView(APIView):
             html_content = render_to_string('emails/email_verification.html', context)
             text_content = strip_tags(html_content)  # Generate plain text version
             
-            # Create email
+            # Create email with timeout settings
             subject = 'Verify Your NerdsLab Account'
             from_email = settings.DEFAULT_FROM_EMAIL
             to = [user.email]
             
-            msg = EmailMultiAlternatives(subject, text_content, from_email, to)
+            msg = EmailMultiAlternatives(
+                subject, 
+                text_content, 
+                from_email, 
+                to,
+                connection=get_connection(timeout=settings.EMAIL_TIMEOUT)
+            )
             msg.attach_alternative(html_content, "text/html")
             
-            # Send email
-            msg.send()
+            # Implement retry mechanism
+            from smtplib import SMTPException
+            from socket import timeout as SocketTimeout
+            import time
+            import logging
             
-            return Response({'message': 'Verification email sent'})
+            logger = logging.getLogger('accounts')
+            
+            for attempt in range(settings.SMTP_MAX_RETRIES):
+                try:
+                    msg.send()
+                    logger.info(f"Resent verification email successfully to {user.email}")
+                    return Response({'message': 'Verification email sent'})
+                except (SMTPException, SocketTimeout) as e:
+                    if attempt < settings.SMTP_MAX_RETRIES - 1:
+                        logger.warning(f"Resend verification email failed (attempt {attempt + 1}): {str(e)}")
+                        time.sleep(settings.SMTP_RETRY_DELAY)
+                    else:
+                        logger.error(f"All resend verification email attempts failed for {user.email}: {str(e)}")
+                        return Response(
+                            {'error': 'Failed to send verification email. Please try again later.'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                        )
+                except Exception as e:
+                    logger.error(f"Unexpected error resending verification email to {user.email}: {str(e)}")
+                    return Response(
+                        {'error': str(e)},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
             
         except User.DoesNotExist:
             # Don't reveal if email exists for security reasons

@@ -1,27 +1,17 @@
 import os
 from pathlib import Path
 import dotenv
-from django.core.management.utils import get_random_secret_key
 
-# Load environment variables from .env file if it exists
+# Load environment variables
 dotenv.load_dotenv(os.path.join(Path(__file__).resolve().parent.parent, '.env'))
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-# Get SECRET_KEY from environment variable or use the one defined here as fallback
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-123456789abcdefghijklmnopqrstuvwxyz')
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-# Additional allowed hosts for Cloudflare
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    'nerd-api.nerdslab.in',
-]
+# Security settings
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'your-secret-key-here')
+DEBUG = False
+ALLOWED_HOSTS = ['nerd-api.nerdslab.in', 'localhost', '127.0.0.1']
 
 # Application definition
 INSTALLED_APPS = [
@@ -31,19 +21,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
-    # Third party apps
     'rest_framework',
-    'rest_framework.authtoken',  # Required for token authentication
-    'corsheaders',  # Enable CORS
-    
-    # Local apps
+    'rest_framework.authtoken',
+    'corsheaders',
     'accounts',
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # Must be first!
-    'nerdslab.middleware.CloudflareProxyMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -52,9 +37,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'accounts.middleware.PasswordRehashMiddleware',
-    'django.middleware.cache.UpdateCacheMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.cache.FetchFromCacheMiddleware',
 ]
 
 ROOT_URLCONF = 'nerdslab.urls'
@@ -62,7 +44,7 @@ ROOT_URLCONF = 'nerdslab.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'accounts' / 'templates'],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -77,54 +59,27 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'nerdslab.wsgi.application'
 
-# Database
+# Database settings for SQLite with production configuration
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join('/var/www/nerdsback', 'db.sqlite3') if not DEBUG else BASE_DIR / 'db.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+        'OPTIONS': {
+            'timeout': 30,  # Increase SQLite timeout for concurrent operations
+        },
+        'ATOMIC_REQUESTS': True,  # Ensure transactions are atomic
     }
 }
 
-# Database optimization settings
-CONN_MAX_AGE = 60  # Keep database connections alive for 60 seconds
+# Ensure SQLite file permissions are secure
+db_path = BASE_DIR / 'db.sqlite3'
+if os.path.exists(db_path):
+    os.chmod(db_path, 0o600)
 
-# Cache settings for development
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
-    }
-}
-
-# Cache timeout settings
-CACHE_TTL = 60 * 60 * 48  # 48 hours for email verification
-CACHE_MIDDLEWARE_SECONDS = 60 * 5  # 5 minutes general cache
-CACHE_MIDDLEWARE_KEY_PREFIX = 'nerdslab'
-
-# Password hashing configuration
-PASSWORD_HASHERS = [
-    # Argon2 is the recommended password hasher - strongest algorithm
-    'django.contrib.auth.hashers.Argon2PasswordHasher',
-    # PBKDF2 with SHA-512 is a strong alternative
-    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
-    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
-    # BCrypt is another strong option
-    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
-    # Default hashers for backwards compatibility
-    'django.contrib.auth.hashers.ScryptPasswordHasher',
-]
-
-# Configure PBKDF2 with more iterations for enhanced security
-PASSWORD_HASHERS_CONFIG = {
-    'PBKDF2PasswordHasher': {
-        'ITERATIONS': 320000,  # Higher iteration count for stronger security
-        'DIGEST': 'sha512',    # Using SHA-512 for stronger hashing
-    },
-    'Argon2PasswordHasher': {
-        'TIME_COST': 4,        # Increased time cost for better security
-        'MEMORY_COST': 65536,  # 64MB in KiB
-        'PARALLELISM': 2,      # Number of parallel threads
-    },
+# Configure SQLite to handle concurrent connections
+CONN_MAX_AGE = None  # Persistent connections
+DATABASE_OPTIONS = {
+    'timeout': 30,
 }
 
 # Password validation
@@ -135,7 +90,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
         'OPTIONS': {
-            'min_length': 12,  # Require longer passwords for better security
+            'min_length': 12,
         }
     },
     {
@@ -144,9 +99,14 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
-    {
-        'NAME': 'accounts.validators.PatternPasswordValidator',
-    },
+]
+
+# Password hashers
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
 ]
 
 # Internationalization
@@ -155,169 +115,85 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
-STATIC_URL = 'static/'
+# Static files
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 
-# Default primary key field type
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# Media files
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# Security settings
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '31536000'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
+X_FRAME_OPTIONS = 'DENY'
+CSRF_TRUSTED_ORIGINS = [
+    'https://learn.nerdslab.in',
+    'https://nerd-api.nerdslab.in'
+]
 
 # REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
+    ] if not DEBUG else [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour'
+    }
 }
 
-# Security and CORS Settings
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SECURE_SSL_REDIRECT = False  # Handled by Cloudflare
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-
-# CORS configuration
-CORS_ALLOW_ALL_ORIGINS = False
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://learn.nerdslab.in',
-    'https://learn.nerdslab.in',
-    'http://labs.nerdslab.in',
-    'https://labs.nerdslab.in'
-]
-
+# CORS settings
 CORS_ALLOW_CREDENTIALS = True
-CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
-
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
-
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-    'cf-connecting-ip',
-    'cf-ipcountry',
-    'cf-ray',
-    'cf-visitor',
-    'access-control-request-headers',
-    'access-control-request-method',
-]
-
-# Ensure CORS headers are exposed
-CORS_EXPOSE_HEADERS = [
-    'access-control-allow-origin',
-    'access-control-allow-credentials',
-    'access-control-allow-methods',
-    'access-control-allow-headers',
-]
-
-# CORS and API configuration
-CORS_URLS_REGEX = r'^/api/.*$'  # Only apply CORS to API endpoints
-CORS_ORIGIN_ALLOW_ALL = False
-
-# Development settings
-if DEBUG:
-    SECURE_SSL_REDIRECT = False
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SECURE = False
-
-# Extended security headers
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
-
-# CSRF Settings
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://learn.nerdslab.in',
+CORS_ALLOWED_ORIGINS = [
     'https://learn.nerdslab.in',
-    'http://labs.nerdslab.in',
-    'https://labs.nerdslab.in'
+    'http://localhost:3000',
 ]
+CORS_URLS_REGEX = r'^/api/.*$'
 
-# Frontend URL for password reset links
-FRONTEND_URL = 'https://learn.nerdslab.in'
-
-# Email settings for Zoho Mail
+# Email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.zoho.in')  # Zoho India SMTP server
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.zoho.in')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'no-reply@nerdslab.in')
-# Store this in environment variable in production
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'dtaK8xf&')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# Email sending optimizations
-EMAIL_TIMEOUT = 5  # seconds
-EMAIL_USE_LOCALTIME = True
-EMAIL_SUBJECT_PREFIX = '[NerdsLab] '
+# Email timeout settings
+EMAIL_TIMEOUT = 30  # timeout in seconds
+SMTP_MAX_RETRIES = 3
+SMTP_RETRY_DELAY = 5  # seconds between retries
 
-# Add email backend caching
-EMAIL_BACKEND_CACHE_PREFIX = 'email_backend_cache_'
-EMAIL_BACKEND_CACHE_TIMEOUT = 60 * 60  # 1 hour
+# Lab Service settings
+LAB_SERVICE_URL = 'https://labs.nerdslab.in'
+LAB_SERVICE_TOKEN = os.environ.get('LAB_SERVICE_TOKEN')
 
-# Lab Service (Server 2) Configuration
-LAB_SERVICE_URL = os.environ.get('LAB_SERVICE_URL', 'http://localhost')  # URL to the lab service
-# Store this in environment variable in production
-LAB_SERVICE_TOKEN = os.environ.get('LAB_SERVICE_TOKEN', 'your-api-token-here')  # API token for authentication
+# Frontend URL
+FRONTEND_URL = 'https://learn.nerdslab.in'
 
-# Add this at the end
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
-
-# Security Settings
-SESSION_COOKIE_SECURE = False  # Only send over HTTPS
-SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access
-SESSION_COOKIE_SAMESITE = 'Lax'  # Changed from Strict to Lax for better compatibility
-CSRF_COOKIE_SECURE = False
-CSRF_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SAMESITE = 'Lax'  # Changed from Strict to Lax for better compatibility
-CSRF_USE_SESSIONS = True
-CSRF_FAILURE_VIEW = 'accounts.views.csrf_failure'
-
-# Session settings
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_COOKIE_AGE = 3600  # 1 hour in seconds
-
-# For development, you may need to disable some settings
-if DEBUG:
-    SECURE_SSL_REDIRECT = False
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SECURE = False
-
-# Ensure your API endpoints are correctly defined
-# Check your views and URLs to ensure they are set up correctly
-
-# Add to settings.py
-SECURE_HSTS_SECONDS = 31536000  # 1 year
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
-
-# Add logging configuration
+# Logging Configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -326,22 +202,68 @@ LOGGING = {
             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
             'style': '{',
         },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue',
+        },
     },
     'handlers': {
         'console': {
+            'level': 'INFO',
+            'filters': ['require_debug_true'],
             'class': 'logging.StreamHandler',
+            'formatter': 'simple'
+        },
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs/auth_service.log',
+            'maxBytes': 1024 * 1024 * 10,  # 10MB
+            'backupCount': 5,
             'formatter': 'verbose',
         },
+        'mail_admins': {
+            'level': 'ERROR',
+            'filters': ['require_debug_false'],
+            'class': 'django.utils.log.AdminEmailHandler'
+        },
+        'email_file': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs/email_service.log',
+            'maxBytes': 1024 * 1024 * 10,  # 10MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        }
     },
     'loggers': {
         'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-        },
-        'nerdslab': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': True,
         },
-    },
+        'django.request': {
+            'handlers': ['mail_admins', 'file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'accounts': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'email': {
+            'handlers': ['console', 'email_file'],
+            'level': 'INFO',
+            'propagate': True,
+        }
+    }
 }
