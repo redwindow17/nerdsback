@@ -619,3 +619,73 @@ INFO 2025-05-05 13:17:11,905 basehttp 23992 13696 code 400, message Bad request 
 ERROR 2025-05-05 13:17:11,905 basehttp 23992 13696 You're accessing the development server over HTTPS, but it only supports HTTP.
 INFO 2025-05-05 13:17:11,906 basehttp 23992 19032 code 400, message Bad request version ('\x013±Í\x81{')
 ERROR 2025-05-05 13:17:11,907 basehttp 23992 19032 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 13:34:34,207 basehttp 23992 23660 code 400, message Bad HTTP/0.9 request type ('\x16\x03\x01\x06')
+ERROR 2025-05-05 13:34:34,207 basehttp 23992 23660 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 13:34:34,209 basehttp 23992 21148 code 400, message Bad request version ('jj\x13\x01\x13\x02\x13\x03À+À/À,À0Ì©Ì¨À\x13À\x14\x00\x9c\x00\x9d\x00/\x005\x01\x00\x06S\x8a\x8a\x00\x00\x00')
+ERROR 2025-05-05 13:34:34,210 basehttp 23992 21148 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 13:34:45,608 basehttp 23992 3808 code 400, message Bad request version ('JJ\x13\x01\x13\x02\x13\x03À+À/À,À0Ì©Ì¨À\x13À\x14\x00\x9c\x00\x9d\x00/\x005\x01\x00\x063')
+ERROR 2025-05-05 13:34:45,609 basehttp 23992 3808 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 13:34:45,610 basehttp 23992 23540 code 400, message Bad request version ("éÀ\x89°(P½£\x8b7c\x0e\x18pi\\Àô\x91Ó\x9eÆY7ùÍÖc\x18\x8b=Íu¿÷94âù@'ÃË\x00")
+ERROR 2025-05-05 13:34:45,610 basehttp 23992 23540 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 13:34:58,327 basehttp 23992 20040 code 400, message Bad request version ('k\x82\x8ay\x90®KV\x18\x01ÙÙéÌõ\x95\x00#\x00\x00\x00\x05\x00\x05\x01\x00\x00\x00\x00\x00\x12\x00\x00\x00\x17\x00\x00DÍ\x00\x05\x00\x03\x02h2\x00')
+ERROR 2025-05-05 13:34:58,327 basehttp 23992 20040 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 13:34:58,328 basehttp 23992 21572 code 400, message Bad request version ('\x02h2\x08http/1.1\x00')
+ERROR 2025-05-05 13:34:58,328 basehttp 23992 21572 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 13:35:14,747 basehttp 23992 18580 code 400, message Bad request version (':30\x12²X²\x19t\x15×ý£\x80»\x00\x17\x00\x00\x00')
+ERROR 2025-05-05 13:35:14,748 basehttp 23992 18580 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 13:35:15,015 basehttp 23992 5324 code 400, message Bad request version ('êê\x13\x01\x13\x02\x13\x03À+À/À,À0Ì©Ì¨À\x13À\x14\x00\x9c\x00\x9d\x00/\x005\x01\x00\x06¥ªª\x00\x00\x00\x12\x00\x00\x00')
+ERROR 2025-05-05 13:35:15,016 basehttp 23992 5324 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 13:35:15,062 basehttp 23992 19060 code 400, message Bad request version ('±\x97')
+ERROR 2025-05-05 13:35:15,063 basehttp 23992 19060 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 13:35:15,329 basehttp 23992 20928 code 400, message Bad request version ('\x9aj³hHª\x82\x9cÏ»j\x8a\x14\x9c]r\x19\x9b\x14Û&gÐm\x07´')
+ERROR 2025-05-05 13:35:15,329 basehttp 23992 20928 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 14:54:14,871 autoreload 23992 4124 C:\fun\server v3\server 1\nerdslab_backend\nerdslab\settings.py changed, reloading.
+INFO 2025-05-05 14:54:14,875 autoreload 468 23640 C:\fun\server v3\server 1\nerdslab_backend\nerdslab\settings.py changed, reloading.
+INFO 2025-05-05 14:54:15,721 autoreload 19704 21596 Watching for file changes with StatReloader
+INFO 2025-05-05 14:54:15,722 autoreload 9356 6340 Watching for file changes with StatReloader
+INFO 2025-05-05 14:54:29,314 basehttp 9356 24688 code 400, message Bad request version ('\x02h2\x08http/1.1\x00-\x00\x02\x01\x01\x00')
+ERROR 2025-05-05 14:54:29,315 basehttp 9356 24688 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 14:54:29,316 basehttp 9356 24568 code 400, message Bad HTTP/0.9 request type ('\x16\x03\x01\x06')
+ERROR 2025-05-05 14:54:29,316 basehttp 9356 24568 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-05 14:55:47,208 autoreload 13740 23364 Watching for file changes with StatReloader
+INFO 2025-05-05 14:58:06,132 autoreload 19704 21596 C:\fun\server v3\server 1\nerdslab_backend\accounts\views.py changed, reloading.
+INFO 2025-05-05 14:58:06,138 autoreload 9356 6340 C:\fun\server v3\server 1\nerdslab_backend\accounts\views.py changed, reloading.
+INFO 2025-05-05 14:58:06,939 autoreload 16428 24168 Watching for file changes with StatReloader
+INFO 2025-05-05 14:58:06,939 autoreload 11032 18560 Watching for file changes with StatReloader
+INFO 2025-05-05 14:58:44,076 autoreload 11032 18560 C:\fun\server v3\server 1\nerdslab_backend\accounts\views.py changed, reloading.
+INFO 2025-05-05 14:58:44,077 autoreload 16428 24168 C:\fun\server v3\server 1\nerdslab_backend\accounts\views.py changed, reloading.
+INFO 2025-05-05 14:58:44,871 autoreload 21452 21148 Watching for file changes with StatReloader
+INFO 2025-05-05 14:58:44,871 autoreload 8864 8676 Watching for file changes with StatReloader
+INFO 2025-05-05 15:05:18,410 autoreload 8864 8676 C:\fun\server v3\server 1\nerdslab_backend\nerdslab\settings.py changed, reloading.
+INFO 2025-05-05 15:05:18,415 autoreload 21452 21148 C:\fun\server v3\server 1\nerdslab_backend\nerdslab\settings.py changed, reloading.
+INFO 2025-05-05 15:05:19,218 autoreload 20620 12392 Watching for file changes with StatReloader
+INFO 2025-05-05 15:05:19,218 autoreload 20260 20584 Watching for file changes with StatReloader
+INFO 2025-05-06 05:26:20,063 autoreload 14216 13720 Watching for file changes with StatReloader
+INFO 2025-05-06 05:27:01,674 autoreload 14216 13720 C:\fun\server v3\server 1\nerdslab_backend\nerdslab\settings.py changed, reloading.
+INFO 2025-05-06 05:27:02,456 autoreload 5448 8004 Watching for file changes with StatReloader
+INFO 2025-05-06 05:28:39,352 autoreload 3624 9208 Watching for file changes with StatReloader
+INFO 2025-05-06 05:28:44,550 basehttp 3624 9000 code 400, message Bad request version ('R«ú\x1b-\x00\x00-\x00\x02\x01\x01\x00')
+ERROR 2025-05-06 05:28:44,550 basehttp 3624 9000 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-06 05:28:44,552 basehttp 3624 13612 code 400, message Bad request version ('/\x8f¦')
+ERROR 2025-05-06 05:28:44,552 basehttp 3624 13612 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-06 05:28:52,636 basehttp 3624 8900 code 400, message Bad request version ('ZZ\x13\x01\x13\x02\x13\x03À+À/À,À0Ì©Ì¨À\x13À\x14\x00\x9c\x00\x9d\x00/\x005\x01\x00\x06S')
+ERROR 2025-05-06 05:28:52,636 basehttp 3624 8900 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-06 05:28:52,638 basehttp 3624 2332 code 400, message Bad request version ('úú\x13\x01\x13\x02\x13\x03À+À/À,À0Ì©Ì¨À\x13À\x14\x00\x9c\x00\x9d\x00/\x005\x01\x00\x063')
+ERROR 2025-05-06 05:28:52,638 basehttp 3624 2332 You're accessing the development server over HTTPS, but it only supports HTTP.
+INFO 2025-05-06 05:44:43,301 autoreload 3624 9208 C:\fun\server v3\server 1\nerdslab_backend\nerdslab\settings.py changed, reloading.
+INFO 2025-05-06 05:44:44,083 autoreload 14232 9504 Watching for file changes with StatReloader
+INFO 2025-05-06 05:45:26,074 autoreload 14232 9504 C:\fun\server v3\server 1\nerdslab_backend\accounts\views.py changed, reloading.
+INFO 2025-05-06 05:45:26,857 autoreload 13172 12084 Watching for file changes with StatReloader
+INFO 2025-05-06 05:45:42,053 autoreload 13172 12084 C:\fun\server v3\server 1\nerdslab_backend\accounts\views.py changed, reloading.
+INFO 2025-05-06 05:45:42,822 autoreload 3256 2756 Watching for file changes with StatReloader
+INFO 2025-05-06 05:48:13,376 autoreload 3256 2756 C:\fun\server v3\server 1\nerdslab_backend\nerdslab\settings.py changed, reloading.
+INFO 2025-05-06 05:48:14,137 autoreload 9840 6844 Watching for file changes with StatReloader
+INFO 2025-05-06 05:48:45,849 autoreload 9840 6844 C:\fun\server v3\server 1\nerdslab_backend\accounts\views.py changed, reloading.
+INFO 2025-05-06 05:48:46,704 autoreload 11676 5252 Watching for file changes with StatReloader
+INFO 2025-05-06 05:49:19,444 autoreload 11676 5252 C:\fun\server v3\server 1\nerdslab_backend\nerdslab\settings.py changed, reloading.
+INFO 2025-05-06 05:49:20,207 autoreload 9208 8248 Watching for file changes with StatReloader
+INFO 2025-05-06 05:49:41,543 autoreload 9208 8248 C:\fun\server v3\server 1\nerdslab_backend\accounts\views.py changed, reloading.
+INFO 2025-05-06 05:49:42,319 autoreload 6620 5816 Watching for file changes with StatReloader
+INFO 2025-05-06 05:50:14,032 autoreload 6620 5816 C:\fun\server v3\server 1\nerdslab_backend\accounts\views.py changed, reloading.
+INFO 2025-05-06 05:50:14,792 autoreload 7844 4428 Watching for file changes with StatReloader
+INFO 2025-05-06 05:51:36,101 autoreload 5148 11372 Watching for file changes with StatReloader

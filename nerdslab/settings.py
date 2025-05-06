@@ -25,7 +25,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
-    'accounts',
+    'accounts.apps.AccountsConfig',
 ]
 
 MIDDLEWARE = [
@@ -66,7 +66,7 @@ WSGI_APPLICATION = 'nerdslab.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',  # Always use local path for development
+        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
         'OPTIONS': {
             'timeout': 30,
         },
@@ -150,7 +150,8 @@ SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = 'DENY'
 CSRF_TRUSTED_ORIGINS = [
     'https://learn.nerdslab.in',
-    'https://nerd-api.nerdslab.in'
+    'https://nerd-api.nerdslab.in',
+    'https://labs.nerdslab.in'
 ]
 
 # REST Framework settings
@@ -182,6 +183,7 @@ REST_FRAMEWORK = {
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     'https://learn.nerdslab.in',
+    'https://labs.nerdslab.in',
     'http://localhost:3000'
 ]
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']

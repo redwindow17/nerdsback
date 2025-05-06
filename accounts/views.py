@@ -26,6 +26,7 @@ from .serializers import (
     EmailVerificationSerializer
 )
 from .models import UserProfile, PasswordResetToken, EmailVerificationToken
+from nerdslab.email_config import send_verification_email, send_password_reset_email
 
 @method_decorator(csrf_exempt, name='dispatch')
 class RegisterView(generics.CreateAPIView):
@@ -51,8 +52,8 @@ class RegisterView(generics.CreateAPIView):
                 # Create verification token inside transaction
                 token = EmailVerificationToken.objects.create(user=user)
                 
-                # Send verification email asynchronously
-                self.send_verification_email_async(user, token)
+                # Send verification email
+                send_verification_email(user, token)
             
             return Response({
                 "message": "Registration successful. Please check your email to verify your account.",
@@ -82,60 +83,6 @@ class RegisterView(generics.CreateAPIView):
             else:
                 friendly_messages.append(error_str)
         return friendly_messages
-    
-    def send_verification_email_async(self, user, token):
-        from threading import Thread
-        from django.core.cache import cache
-        import time
-        from smtplib import SMTPException
-        from socket import timeout as SocketTimeout
-        from django.conf import settings
-        import logging
-        
-        logger = logging.getLogger('accounts')
-        
-        def send_email():
-            # Cache the verification status for 48 hours
-            cache_key = f'email_verification_{token.token}'
-            cache.set(cache_key, {'is_valid': True}, timeout=48*3600)
-            
-            verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token.token}"
-            context = {
-                'verify_url': verify_url,
-                'user': user,
-                'expiry_hours': 48,
-            }
-            
-            html_content = render_to_string('emails/email_verification.html', context)
-            text_content = strip_tags(html_content)
-            
-            msg = EmailMultiAlternatives(
-                'Verify Your NerdsLab Account',
-                text_content,
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email],
-                connection=get_connection(timeout=settings.EMAIL_TIMEOUT)
-            )
-            msg.attach_alternative(html_content, "text/html")
-            
-            # Implement retry mechanism
-            for attempt in range(settings.SMTP_MAX_RETRIES):
-                try:
-                    msg.send()
-                    logger.info(f"Verification email sent successfully to {user.email}")
-                    return
-                except (SMTPException, SocketTimeout) as e:
-                    if attempt < settings.SMTP_MAX_RETRIES - 1:
-                        logger.warning(f"Email sending failed (attempt {attempt + 1}): {str(e)}")
-                        time.sleep(settings.SMTP_RETRY_DELAY)
-                    else:
-                        logger.error(f"All email sending attempts failed for {user.email}: {str(e)}")
-                except Exception as e:
-                    logger.error(f"Unexpected error sending email to {user.email}: {str(e)}")
-                    break
-        
-        # Start email sending in background
-        Thread(target=send_email).start()
 
 @method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
