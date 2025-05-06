@@ -10,9 +10,15 @@ dotenv.load_dotenv(os.path.join(Path(__file__).resolve().parent.parent, '.env'))
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security settings
+DEBUG = True
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'your-secret-key-here')
-DEBUG = False
-ALLOWED_HOSTS = ['nerd-api.nerdslab.in', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'nerd-api.nerdslab.in',
+    'learn.nerdslab.in',
+    'labs.nerdslab.in'
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -139,20 +145,50 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Security settings
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '31536000'))
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
+SECURE_SSL_REDIRECT = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+SECURE_HSTS_SECONDS = 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = 'DENY'
-CSRF_TRUSTED_ORIGINS = [
+
+# CORS settings
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://learn.nerdslab.in',
     'https://learn.nerdslab.in',
+    'http://nerd-api.nerdslab.in',
     'https://nerd-api.nerdslab.in',
+    'http://labs.nerdslab.in',
     'https://labs.nerdslab.in'
 ]
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
+CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+CORS_PREFLIGHT_MAX_AGE = 86400
+
+# CSRF settings
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://learn.nerdslab.in',
+    'https://learn.nerdslab.in',
+    'http://nerd-api.nerdslab.in',
+    'https://nerd-api.nerdslab.in',
+    'http://labs.nerdslab.in',
+    'https://labs.nerdslab.in'
+]
+
+# Session settings
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_USE_SESSIONS = True
 
 # REST Framework settings
 REST_FRAMEWORK = {
@@ -178,16 +214,6 @@ REST_FRAMEWORK = {
         'user': '1000/hour'
     }
 }
-
-# CORS settings
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    'https://learn.nerdslab.in',
-    'https://labs.nerdslab.in',
-    'http://localhost:3000'
-]
-CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
-CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 
 # Email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
