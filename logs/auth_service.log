@@ -688,4 +688,9 @@ INFO 2025-05-06 05:49:41,543 autoreload 9208 8248 C:\fun\server v3\server 1\nerd
 INFO 2025-05-06 05:49:42,319 autoreload 6620 5816 Watching for file changes with StatReloader
 INFO 2025-05-06 05:50:14,032 autoreload 6620 5816 C:\fun\server v3\server 1\nerdslab_backend\accounts\views.py changed, reloading.
 INFO 2025-05-06 05:50:14,792 autoreload 7844 4428 Watching for file changes with StatReloader
-INFO 2025-05-06 05:51:36,101 autoreload 5148 11372 Watching for file changes with StatReloader
+INFO 2025-05-06 06:00:51,815 autoreload 7844 4428 C:\fun\server v3\server 1\nerdslab_backend\nerdslab\settings.py changed, reloading.
+INFO 2025-05-06 06:02:05,277 autoreload 12304 7032 Watching for file changes with StatReloader
+INFO 2025-05-06 06:27:16,861 autoreload 12304 7032 C:\fun\server v3\server 1\nerdslab_backend\nerdslab\email_config.py changed, reloading.
+INFO 2025-05-06 06:27:17,701 autoreload 20388 15316 Watching for file changes with StatReloader
+INFO 2025-05-06 06:27:25,683 autoreload 20388 15316 C:\fun\server v3\server 1\nerdslab_backend\accounts\views.py changed, reloading.
+INFO 2025-05-06 06:27:26,471 autoreload 19528 6256 Watching for file changes with StatReloader
