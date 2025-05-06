@@ -9,12 +9,15 @@ import time
 from smtplib import SMTPException, SMTPAuthenticationError
 from socket import timeout as SocketTimeout
 
+# Configure email logger
 logger = logging.getLogger('email')
+logger.setLevel(logging.INFO)
 
 def get_email_connection():
     """Get a configured email connection with retry logic"""
     try:
-        return get_connection(
+        logger.info(f"Creating email connection to {settings.EMAIL_HOST}:{settings.EMAIL_PORT}")
+        connection = get_connection(
             host=settings.EMAIL_HOST,
             port=settings.EMAIL_PORT,
             username=settings.EMAIL_HOST_USER,
@@ -22,6 +25,8 @@ def get_email_connection():
             use_tls=settings.EMAIL_USE_TLS,
             timeout=settings.EMAIL_TIMEOUT
         )
+        logger.info("Email connection created successfully")
+        return connection
     except Exception as e:
         logger.error(f"Failed to create email connection: {str(e)}")
         raise
@@ -33,6 +38,7 @@ def send_email_async(subject, to_email, template_name, context, from_email=None)
 
     def send():
         try:
+            logger.info(f"Preparing email to {to_email}")
             # Render email content
             html_content = render_to_string(template_name, context)
             text_content = strip_tags(html_content)
@@ -50,6 +56,7 @@ def send_email_async(subject, to_email, template_name, context, from_email=None)
             # Implement retry mechanism
             for attempt in range(settings.SMTP_MAX_RETRIES):
                 try:
+                    logger.info(f"Sending email to {to_email} (attempt {attempt + 1})")
                     msg.send()
                     logger.info(f"Email sent successfully to {to_email}")
                     return True

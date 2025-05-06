@@ -219,15 +219,15 @@ REST_FRAMEWORK = {
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.zoho.in')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'no-reply@nerdslab.in')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'dtaK8xf&')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # Email timeout settings
-EMAIL_TIMEOUT = 30  # timeout in seconds
-SMTP_MAX_RETRIES = 3
-SMTP_RETRY_DELAY = 5  # seconds between retries
+EMAIL_TIMEOUT = 60  # Increased timeout to 60 seconds
+SMTP_MAX_RETRIES = 5  # Increased retries
+SMTP_RETRY_DELAY = 10  # Increased delay between retries
 
 # Lab Service settings
 LAB_SERVICE_URL = 'https://labs.nerdslab.in'

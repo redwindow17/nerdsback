@@ -8,7 +8,11 @@ from dotenv import load_dotenv
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('logs/email_test.log'),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger(__name__)
 
@@ -21,13 +25,13 @@ def test_smtp_connection():
         # Get SMTP settings from environment
         smtp_host = os.getenv('EMAIL_HOST', 'smtp.zoho.in')
         smtp_port = int(os.getenv('EMAIL_PORT', '587'))
-        smtp_user = os.getenv('EMAIL_HOST_USER')
-        smtp_password = os.getenv('EMAIL_HOST_PASSWORD')
+        smtp_user = os.getenv('EMAIL_HOST_USER', 'no-reply@nerdslab.in')
+        smtp_password = os.getenv('EMAIL_HOST_PASSWORD', 'dtaK8xf&')
         
         logger.info(f"Testing SMTP connection to {smtp_host}:{smtp_port}")
         
         # Create SMTP connection
-        server = smtplib.SMTP(smtp_host, smtp_port)
+        server = smtplib.SMTP(smtp_host, smtp_port, timeout=60)
         server.set_debuglevel(1)  # Enable debug output
         
         # Start TLS
@@ -50,8 +54,8 @@ def test_send_email():
         # Get email settings
         smtp_host = os.getenv('EMAIL_HOST', 'smtp.zoho.in')
         smtp_port = int(os.getenv('EMAIL_PORT', '587'))
-        smtp_user = os.getenv('EMAIL_HOST_USER')
-        smtp_password = os.getenv('EMAIL_HOST_PASSWORD')
+        smtp_user = os.getenv('EMAIL_HOST_USER', 'no-reply@nerdslab.in')
+        smtp_password = os.getenv('EMAIL_HOST_PASSWORD', 'dtaK8xf&')
         
         # Create message
         msg = MIMEMultipart()
@@ -91,8 +95,7 @@ def test_send_email():
         logger.error(f"Failed to send test email: {str(e)}")
         raise
 
-def main():
-    """Main function to run email tests"""
+if __name__ == '__main__':
     try:
         logger.info("Starting email configuration test...")
         
@@ -106,7 +109,4 @@ def main():
         
     except Exception as e:
         logger.error(f"Email test failed: {str(e)}")
-        raise
-
-if __name__ == "__main__":
-    main() 
+        raise 
