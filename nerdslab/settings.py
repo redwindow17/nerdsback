@@ -14,7 +14,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-123456789abcdefghijklmnopqrstuvwxyz')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() == 'true'
 
 # Additional allowed hosts for Cloudflare
 ALLOWED_HOSTS = [
@@ -42,10 +42,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'nerdslab.cors_middleware.CorsMiddleware',  # Must be first for CORS
+    'nerdslab.cors_middleware.CorsMiddleware',  # Must be first for CORS handling
     'corsheaders.middleware.CorsMiddleware',    # Django CORS headers middleware
     'django.middleware.common.CommonMiddleware',  # Move this right after CorsMiddleware
-    'nerdslab.cors_middleware.SecurityHeadersMiddleware',  # Security headers
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -53,6 +52,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'accounts.middleware.PasswordRehashMiddleware',
+    'nerdslab.cors_middleware.SecurityHeadersMiddleware',  # Move to the end to apply security headers
 ]
 
 ROOT_URLCONF = 'nerdslab.urls'
@@ -166,10 +166,13 @@ CSRF_USE_SESSIONS = False  # Store CSRF token in cookie instead of session
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access to CSRF token
 CSRF_COOKIE_SAMESITE = 'Lax'  # Allow cross-site requests while maintaining security
 
-# Add all required origins, including local development URLs
+# Ensure both CORS_ORIGIN_ALLOW_ALL and explicit origins are set
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Allow all origins in development mode
 CORS_ALLOWED_ORIGINS = [
     'https://learn.nerdslab.in',
     'https://labs.nerdslab.in',
+    'http://learn.nerdslab.in',  # Also include HTTP version
+    'http://labs.nerdslab.in',   # Also include HTTP version
 ]
 
 if DEBUG:
