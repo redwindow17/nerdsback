@@ -39,29 +39,59 @@ class RegisterView(generics.CreateAPIView):
     def options(self, request, *args, **kwargs):
         response = Response()
         response["Allow"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Origin"] = "https://learn.nerdslab.in"
+        response["Access-Control-Allow-Origin"] = request.headers.get('Origin', '*')
         response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
+        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization, Accept, Origin, User-Agent, DNT, Cache-Control, X-Requested-With"
         response["Access-Control-Allow-Credentials"] = "true"
         response["Access-Control-Max-Age"] = "86400"
         return response
 
     def create(self, request, *args, **kwargs):
-        # Print request data for debugging
-        print("Register request data:", request.data)
+        # Enhanced debugging
+        print("\n==== REGISTER REQUEST ====")
+        print(f"Headers: {request.headers}")
+        print(f"Data: {request.data}")
+        print(f"Content-Type: {request.content_type}")
+        print(f"Method: {request.method}")
+        print(f"CORS Origin: {request.headers.get('Origin', 'None')}")
+        print(f"CSRF Token: {request.headers.get('X-CSRFToken', 'None')}")
+        print("==========================\n")
         
-        serializer = self.get_serializer(data=request.data)
+        # Check if we're dealing with form data and convert to JSON-compatible format
+        if hasattr(request.data, 'dict'):
+            data = request.data.dict()
+        else:
+            data = request.data
+            
+        print(f"Processed data for serializer: {data}")
+        
+        serializer = self.get_serializer(data=data)
         try:
-            serializer.is_valid(raise_exception=True)
+            # Check if the data is valid, but print validation errors instead of raising exception
+            is_valid = serializer.is_valid()
+            if not is_valid:
+                print("Validation errors:", serializer.errors)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Continue with registration if data is valid
             user = serializer.save()
             
             # Send email verification instead of directly logging in user
             self.send_verification_email(user)
             
-            return Response({
+            # Add CORS headers to response
+            response = Response({
                 "message": "Registration successful. Please check your email to verify your account.",
                 "user": UserSerializer(user, context=self.get_serializer_context()).data,
             }, status=status.HTTP_201_CREATED)
+            
+            # Add CORS headers directly to response
+            origin = request.headers.get('Origin')
+            if origin:
+                response["Access-Control-Allow-Origin"] = origin
+                response["Access-Control-Allow-Credentials"] = "true"
+                
+            return response
         except serializers.ValidationError as e:
             # Handle validation errors with better messages (existing code)
             errors = e.detail
@@ -133,7 +163,7 @@ class LoginView(APIView):
     def options(self, request, *args, **kwargs):
         response = Response()
         response["Allow"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Origin"] = "https://learn.nerdslab.in"
+        response["Access-Control-Allow-Origin"] = request.headers.get('Origin', '*')
         response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
         response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
         response["Access-Control-Allow-Credentials"] = "true"

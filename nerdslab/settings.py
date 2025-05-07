@@ -167,7 +167,7 @@ CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access to CSRF token
 CSRF_COOKIE_SAMESITE = 'Lax'  # Allow cross-site requests while maintaining security
 
 # Ensure both CORS_ORIGIN_ALLOW_ALL and explicit origins are set
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Allow all origins in development mode
+CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins temporarily to debug issues
 CORS_ALLOWED_ORIGINS = [
     'https://learn.nerdslab.in',
     'https://labs.nerdslab.in',
@@ -209,6 +209,7 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'cache-control',
 ]
 
 # Ensure CSRF token is included in the response headers

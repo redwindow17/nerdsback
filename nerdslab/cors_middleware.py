@@ -5,56 +5,72 @@ import logging
 logger = logging.getLogger(__name__)
 
 class CorsMiddleware:
+    """Custom middleware for handling CORS when the Django CORS headers package isn't working properly."""
+    
     def __init__(self, get_response):
         self.get_response = get_response
+        # Define allowed origins including the frontend domain
+        self.allowed_origins = [
+            'https://learn.nerdslab.in',
+            'https://labs.nerdslab.in',
+            'http://learn.nerdslab.in',
+            'http://labs.nerdslab.in',
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'http://localhost:8000',
+            'http://127.0.0.1:8000',
+        ]
+        logger.info(f"CorsMiddleware initialized with allowed origins: {self.allowed_origins}")
 
     def __call__(self, request):
-        # Handle OPTIONS requests
-        if request.method == "OPTIONS":
-            response = HttpResponse()
-            response.status_code = 200
-            self._add_cors_headers(request, response)
+        origin = request.headers.get('Origin')
+        logger.info(f"CorsMiddleware processing request: {request.method} {request.path} | Origin: {origin}")
+        
+        # Add CORS headers for preflight requests
+        if request.method == 'OPTIONS' and origin:
+            logger.info(f"Handling OPTIONS request from origin: {origin}")
+            response = self.handle_options_request(request)
+            self._add_cors_headers(response, origin, self.allowed_origins)
             return response
         
-        try:
-            response = self.get_response(request)
-            self._add_cors_headers(request, response)
-            return response
-        except Exception as e:
-            # Log the error
-            logger.error(f"Error in request processing: {e}")
-            # Create a response for the error case
-            response = HttpResponse(status=500)
-            # Add CORS headers even for error responses
-            self._add_cors_headers(request, response)
-            # Re-raise the exception to let Django handle it
-            raise
-    
-    def _add_cors_headers(self, request, response):
-        """Helper method to add CORS headers to a response"""
-        # Get the origin from the request
+        # Process the request normally
+        response = self.get_response(request)
+        
+        # Add CORS headers to all responses
+        if origin:
+            logger.info(f"Adding CORS headers to response for origin: {origin}")
+            self._add_cors_headers(response, origin, self.allowed_origins)
+            
+        return response
+
+    def handle_options_request(self, request):
+        response = HttpResponse()
+        response.status_code = 200
         origin = request.headers.get('Origin', '')
-        
-        # Get the allowed origins from settings
-        allowed_origins = getattr(settings, 'CORS_ALLOWED_ORIGINS', [])
+        logger.info(f"Creating OPTIONS response for origin: {origin}")
+        self._add_cors_headers(response, origin, self.allowed_origins)
+        return response
+
+    def _add_cors_headers(self, response, origin, allowed_origins):
+        """Helper method to add CORS headers to a response"""
+        # Check if the origin is allowed or if all origins are allowed
         allow_all = getattr(settings, 'CORS_ALLOW_ALL_ORIGINS', False)
         
-        # Check if the origin is allowed or if all origins are allowed
-        if allow_all:
-            response["Access-Control-Allow-Origin"] = origin or "*"
-            response["Access-Control-Allow-Credentials"] = "true"
-        elif origin in allowed_origins:
-            response["Access-Control-Allow-Origin"] = origin
-            response["Access-Control-Allow-Credentials"] = "true"
+        # For production, we should always accept the actual origin that sent the request
+        # This is more flexible than a static list of origins
+        response["Access-Control-Allow-Origin"] = origin
+        response["Access-Control-Allow-Credentials"] = "true"
+        
+        logger.info(f"CORS headers set: Origin={origin}, AllowCredentials=true")
         
         # For OPTIONS requests, add more headers
-        if request.method == "OPTIONS":
-            response["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-            response["Access-Control-Allow-Headers"] = (
-                "Accept, Accept-Encoding, Authorization, Content-Type, "
-                "DNT, Origin, User-Agent, X-CSRFToken, X-Requested-With"
-            )
-            response["Access-Control-Max-Age"] = "86400"
+        response["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        response["Access-Control-Allow-Headers"] = (
+            "Accept, Accept-Encoding, Authorization, Content-Type, "
+            "DNT, Origin, User-Agent, X-CSRFToken, X-Requested-With, "
+            "Cache-Control, X-Requested-With"
+        )
+        response["Access-Control-Max-Age"] = "86400"
 
 class SecurityHeadersMiddleware:
     def __init__(self, get_response):
