@@ -1,16 +1,8 @@
-Django>=4.2.0
+django==4.2.7
 djangorestframework==3.14.0
-django-cors-headers>=4.3.0
+django-cors-headers==4.3.0
 python-dotenv==1.0.0
-gunicorn>=21.2.0
-whitenoise>=6.6.0
-uvicorn==0.27.0.post1
-aiosqlite==0.19.0  # Async SQLite support
-django-db-geventpool==4.0.8  # Connection pooling
-retry==0.9.2  # For retrying failed DB operations
-argon2-cffi==23.1.0  # For password hashing
-django-ratelimit>=4.1.0  # For rate limiting
-sentry-sdk[django]>=1.39.1
-redis>=5.0.1
-django-redis>=5.4.0
-psycopg2-binary>=2.9.9
+argon2-cffi==23.1.0
+bcrypt==4.0.1
+bleach==6.1.0 
+requests==2.31.0

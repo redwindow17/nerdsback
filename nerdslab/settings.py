@@ -1,23 +1,26 @@
 import os
-import stat
 from pathlib import Path
 import dotenv
+from django.core.management.utils import get_random_secret_key
 
-# Load environment variables
+# Load environment variables from .env file if it exists
 dotenv.load_dotenv(os.path.join(Path(__file__).resolve().parent.parent, '.env'))
 
-# Build paths
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Security settings
+# SECURITY WARNING: keep the secret key used in production secret!
+# Get SECRET_KEY from environment variable or use the one defined here as fallback
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-123456789abcdefghijklmnopqrstuvwxyz')
+
+# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'your-secret-key-here')
+
+# Additional allowed hosts for Cloudflare
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     'nerd-api.nerdslab.in',
-    'learn.nerdslab.in',
-    'labs.nerdslab.in'
 ]
 
 # Application definition
@@ -28,19 +31,23 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
+    # Third party apps
     'rest_framework',
-    'rest_framework.authtoken',
-    'corsheaders',
-    'accounts.apps.AccountsConfig',
+    'rest_framework.authtoken',  # Required for token authentication
+    'corsheaders',  # Enable CORS
+    
+    # Local apps
+    'accounts',
 ]
 
 MIDDLEWARE = [
-    'nerdslab.cors_middleware.CorsMiddleware',  # Must be first
-    'corsheaders.middleware.CorsMiddleware',
-    'nerdslab.cors_middleware.SecurityHeadersMiddleware',
+    'nerdslab.cors_middleware.CorsMiddleware',  # Must be first for CORS
+    'corsheaders.middleware.CorsMiddleware',    # Django CORS headers middleware
+    'django.middleware.common.CommonMiddleware',  # Move this right after CorsMiddleware
+    'nerdslab.cors_middleware.SecurityHeadersMiddleware',  # Security headers
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -53,7 +60,7 @@ ROOT_URLCONF = 'nerdslab.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [BASE_DIR / 'accounts' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -68,39 +75,39 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'nerdslab.wsgi.application'
 
-# Database settings for SQLite with production configuration
+# Database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-        'OPTIONS': {
-            'timeout': 30,
-        },
-        'ATOMIC_REQUESTS': True,
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
-# Ensure SQLite file permissions are secure - with error handling
-db_path = BASE_DIR / 'db.sqlite3'
-try:
-    if os.path.exists(db_path):
-        current_mode = stat.S_IMODE(os.stat(db_path).st_mode)
-        if current_mode != 0o600:
-            try:
-                os.chmod(db_path, 0o600)
-            except PermissionError:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(
-                    f"Could not set SQLite database permissions to 600. Current permissions: {oct(current_mode)}. "
-                    "Please ensure the database file has correct permissions manually."
-                )
-except Exception as e:
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.warning(f"Error checking SQLite database permissions: {e}")
+# Password hashing configuration
+PASSWORD_HASHERS = [
+    # Argon2 is the recommended password hasher - strongest algorithm
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    # PBKDF2 with SHA-512 is a strong alternative
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    # BCrypt is another strong option
+    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    # Default hashers for backwards compatibility
+    'django.contrib.auth.hashers.ScryptPasswordHasher',
+]
 
-# SQLite performance optimizations will be applied at runtime through start.sh
+# Configure PBKDF2 with more iterations for enhanced security
+PASSWORD_HASHERS_CONFIG = {
+    'PBKDF2PasswordHasher': {
+        'ITERATIONS': 320000,  # Higher iteration count for stronger security
+        'DIGEST': 'sha512',    # Using SHA-512 for stronger hashing
+    },
+    'Argon2PasswordHasher': {
+        'TIME_COST': 4,        # Increased time cost for better security
+        'MEMORY_COST': 65536,  # 64MB in KiB
+        'PARALLELISM': 2,      # Number of parallel threads
+    },
+}
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -110,7 +117,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
         'OPTIONS': {
-            'min_length': 12,
+            'min_length': 12,  # Require longer passwords for better security
         }
     },
     {
@@ -119,14 +126,9 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
-]
-
-# Password hashers
-PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.Argon2PasswordHasher',
-    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
-    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
-    'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
+    {
+        'NAME': 'accounts.validators.PatternPasswordValidator',
+    },
 ]
 
 # Internationalization
@@ -135,114 +137,179 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = 'static/'
 
-# Media files
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-
-# Security settings
-SECURE_SSL_REDIRECT = False
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
-SECURE_HSTS_SECONDS = 0
-SECURE_HSTS_INCLUDE_SUBDOMAINS = False
-SECURE_HSTS_PRELOAD = False
-SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_BROWSER_XSS_FILTER = True
-X_FRAME_OPTIONS = 'DENY'
-
-# CORS settings
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://learn.nerdslab.in',
-    'https://learn.nerdslab.in',
-    'http://nerd-api.nerdslab.in',
-    'https://nerd-api.nerdslab.in',
-    'http://labs.nerdslab.in',
-    'https://labs.nerdslab.in'
-]
-CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
-CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
-CORS_PREFLIGHT_MAX_AGE = 86400
-
-# CSRF settings
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://learn.nerdslab.in',
-    'https://learn.nerdslab.in',
-    'http://nerd-api.nerdslab.in',
-    'https://nerd-api.nerdslab.in',
-    'http://labs.nerdslab.in',
-    'https://labs.nerdslab.in'
-]
-
-# Session settings
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_USE_SESSIONS = True
+# Default primary key field type
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
-    ] if not DEBUG else [
-        'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
     ],
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
-    ],
-    'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/hour',
-        'user': '1000/hour'
-    }
 }
 
-# Email settings
+# Security and CORS Settings
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = not DEBUG  # Only redirect in production
+SESSION_COOKIE_SECURE = not DEBUG  # Only use secure cookies in production
+CSRF_COOKIE_SECURE = not DEBUG  # Only use secure CSRF cookies in production
+CSRF_USE_SESSIONS = False  # Store CSRF token in cookie instead of session
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access to CSRF token
+CSRF_COOKIE_SAMESITE = 'Lax'  # Allow cross-site requests while maintaining security
+
+# Add all required origins, including local development URLs
+CORS_ALLOWED_ORIGINS = [
+    'https://learn.nerdslab.in',
+    'https://labs.nerdslab.in',
+]
+
+if DEBUG:
+    # Add local development origins
+    CORS_ALLOWED_ORIGINS.extend([
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+    ])
+
+# Add the same origins to trusted CSRF origins
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# Ensure CSRF token is included in the response headers
+CORS_EXPOSE_HEADERS = [
+    'x-csrftoken',
+    'content-type',
+    'content-length',
+]
+
+# Extended security headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+# Frontend URL for password reset links
+FRONTEND_URL = 'https://learn.nerdslab.in'
+
+# Email settings for Zoho Mail
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.zoho.in')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.zoho.in')  # Zoho India SMTP server
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
-EMAIL_USE_TLS = True
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'no-reply@nerdslab.in')
+# Store this in environment variable in production
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'dtaK8xf&')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-# Email timeout settings
-EMAIL_TIMEOUT = 60  # Increased timeout to 60 seconds
-SMTP_MAX_RETRIES = 5  # Increased retries
-SMTP_RETRY_DELAY = 10  # Increased delay between retries
+# Lab Service (Server 2) Configuration
+LAB_SERVICE_URL = os.environ.get('LAB_SERVICE_URL', 'http://localhost')  # URL to the lab service
+# Store this in environment variable in production
+LAB_SERVICE_TOKEN = os.environ.get('LAB_SERVICE_TOKEN', 'your-api-token-here')  # API token for authentication
 
-# Lab Service settings
-LAB_SERVICE_URL = 'https://labs.nerdslab.in'
-LAB_SERVICE_TOKEN = os.environ.get('LAB_SERVICE_TOKEN')
+# Add this at the end
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 
-# Frontend URL
-FRONTEND_URL = 'https://learn.nerdslab.in'
+# Security Settings
+SESSION_COOKIE_SECURE = False  # Only send over HTTPS
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access
+SESSION_COOKIE_SAMESITE = 'Lax'  # Changed from Strict to Lax for better compatibility
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'  # Changed from Strict to Lax for better compatibility
+CSRF_USE_SESSIONS = True
+CSRF_FAILURE_VIEW = 'accounts.views.csrf_failure'
 
-# Logging configuration
-LOGGING_CONFIG = None  # Disable Django's default logging configuration
+# Session settings
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = 3600  # 1 hour in seconds
+
+# For development, you may need to disable some settings
+if DEBUG:
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+
+# Ensure your API endpoints are correctly defined
+# Check your views and URLs to ensure they are set up correctly
+
+# Add to settings.py
+SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# Add logging configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+        'nerdslab': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
 }
 
-# Initialize logging
-from .logging_config import configure_logging
-configure_logging()
+# Add middleware for handling OPTIONS requests
+def handle_options_request(request, response):
+    if request.method == 'OPTIONS':
+        response['Access-Control-Allow-Methods'] = 'DELETE, GET, OPTIONS, PATCH, POST, PUT'
+        response['Access-Control-Allow-Headers'] = 'accept, accept-encoding, authorization, content-type, dnt, origin, user-agent, x-csrftoken, x-requested-with'
+        response['Access-Control-Max-Age'] = '86400'
+        response['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
+        response['Access-Control-Allow-Credentials'] = 'true'
+        response['Content-Type'] = 'text/plain; charset=UTF-8'
+        response['Content-Length'] = '0'
+        return response

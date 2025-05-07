@@ -21,45 +21,20 @@ class UserSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(
         required=True,
-        validators=[UniqueValidator(
-            queryset=User.objects.all(),
-            message="This email is already registered."
-        )]
+        validators=[UniqueValidator(queryset=User.objects.all())]
     )
-    password = serializers.CharField(
-        write_only=True, 
-        required=True, 
-        validators=[validate_password],
-        style={'input_type': 'password'}
-    )
-    password2 = serializers.CharField(
-        write_only=True, 
-        required=True,
-        style={'input_type': 'password'}
-    )
-    first_name = serializers.CharField(required=True, max_length=150)
-    last_name = serializers.CharField(required=True, max_length=150)
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password2 = serializers.CharField(write_only=True, required=True)
+    first_name = serializers.CharField(required=True)
+    last_name = serializers.CharField(required=True)
     
     class Meta:
         model = User
         fields = ('username', 'password', 'password2', 'email', 'first_name', 'last_name')
-        extra_kwargs = {
-            'username': {
-                'validators': [
-                    UniqueValidator(
-                        queryset=User.objects.all(),
-                        message="This username is already taken."
-                    )
-                ]
-            }
-        }
         
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({
-                "password": "Password fields didn't match.",
-                "password2": "Password fields didn't match."
-            })
+            raise serializers.ValidationError({"password": "Password fields didn't match."})
             
         # Validate email format
         email = attrs.get('email', '')
@@ -72,23 +47,32 @@ class RegisterSerializer(serializers.ModelSerializer):
         attrs['username'] = bleach.clean(attrs['username'])
             
         return attrs
-
+        
     def create(self, validated_data):
+        # Remove password2 from the data
         validated_data.pop('password2')
+        
+        # Create user with is_active set to False until email verification
         user = User.objects.create(
             username=validated_data['username'],
             email=validated_data['email'],
             first_name=validated_data['first_name'],
             last_name=validated_data['last_name'],
-            is_active=False
+            is_active=False  # User isn't active until email is verified
         )
+        
         user.set_password(validated_data['password'])
         user.save()
         
-        # Create profile
-        UserProfile.objects.create(user=user)
+        # Create profile for the user
+        profile = UserProfile.objects.create(user=user)
+        
+        # Create an email verification token
+        token = EmailVerificationToken.objects.create(user=user)
+        
         return user
-
+        
+# Add a new serializer for email verification
 class EmailVerificationSerializer(serializers.Serializer):
     token = serializers.UUIDField(required=True)
     
@@ -103,42 +87,26 @@ class EmailVerificationSerializer(serializers.Serializer):
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField(required=True)
-    password = serializers.CharField(
-        required=True, 
-        write_only=True,
-        style={'input_type': 'password'}
-    )
+    password = serializers.CharField(required=True, write_only=True)
     
     def validate(self, attrs):
-        # Clean the username input
-        attrs['username'] = bleach.clean(attrs['username'])
         return attrs
 
+# Password reset serializers
 class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     
     def validate_email(self, value):
-        # Don't reveal if email exists in production
-        return bleach.clean(value)
+        if not User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("No user with this email address exists.")
+        return value
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
     token = serializers.CharField(required=True)
-    password = serializers.CharField(
-        write_only=True, 
-        required=True, 
-        validators=[validate_password],
-        style={'input_type': 'password'}
-    )
-    password2 = serializers.CharField(
-        write_only=True, 
-        required=True,
-        style={'input_type': 'password'}
-    )
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password2 = serializers.CharField(write_only=True, required=True)
     
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({
-                "password": "Password fields didn't match.",
-                "password2": "Password fields didn't match."
-            })
-        return attrs
+            raise serializers.ValidationError({"password": "Password fields didn't match."})
+        return attrs 

@@ -1,112 +1,38 @@
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-import logging
-from dotenv import load_dotenv
+import django
+from django.core.mail import send_mail
+from django.conf import settings
 
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/email_test.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+# Setup Django environment
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'nerdslab.settings')
+django.setup()
 
-# Load environment variables
-load_dotenv()
-
-def test_smtp_connection():
-    """Test SMTP connection to Zoho"""
+def test_email_connection():
+    """Test email connection and sending functionality"""
+    print("Email settings:")
+    print(f"EMAIL_HOST: {settings.EMAIL_HOST}")
+    print(f"EMAIL_PORT: {settings.EMAIL_PORT}")
+    print(f"EMAIL_USE_TLS: {settings.EMAIL_USE_TLS}")
+    print(f"EMAIL_HOST_USER: {settings.EMAIL_HOST_USER}")
+    print(f"DEFAULT_FROM_EMAIL: {settings.DEFAULT_FROM_EMAIL}")
+    
     try:
-        # Get SMTP settings from environment
-        smtp_host = os.getenv('EMAIL_HOST', 'smtp.zoho.in')
-        smtp_port = int(os.getenv('EMAIL_PORT', '587'))
-        smtp_user = os.getenv('EMAIL_HOST_USER', 'no-reply@nerdslab.in')
-        smtp_password = os.getenv('EMAIL_HOST_PASSWORD', 'dtaK8xf&')
+        recipient = "test@example.com"  # Change to a real test email
+        subject = "Test Email from NerdsLab API"
+        message = "This is a test email to verify the email functionality is working correctly."
+        from_email = settings.DEFAULT_FROM_EMAIL
         
-        logger.info(f"Testing SMTP connection to {smtp_host}:{smtp_port}")
-        
-        # Create SMTP connection
-        server = smtplib.SMTP(smtp_host, smtp_port, timeout=60)
-        server.set_debuglevel(1)  # Enable debug output
-        
-        # Start TLS
-        logger.info("Starting TLS connection...")
-        server.starttls()
-        
-        # Login
-        logger.info(f"Attempting login with user: {smtp_user}")
-        server.login(smtp_user, smtp_password)
-        
-        logger.info("SMTP connection successful!")
-        return server
+        print(f"\nSending test email to {recipient}...")
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=from_email,
+            recipient_list=[recipient],
+            fail_silently=False,
+        )
+        print("Email sent successfully!")
     except Exception as e:
-        logger.error(f"SMTP connection failed: {str(e)}")
-        raise
+        print(f"Error sending email: {e}")
 
-def test_send_email():
-    """Test sending an email through Zoho SMTP"""
-    try:
-        # Get email settings
-        smtp_host = os.getenv('EMAIL_HOST', 'smtp.zoho.in')
-        smtp_port = int(os.getenv('EMAIL_PORT', '587'))
-        smtp_user = os.getenv('EMAIL_HOST_USER', 'no-reply@nerdslab.in')
-        smtp_password = os.getenv('EMAIL_HOST_PASSWORD', 'dtaK8xf&')
-        
-        # Create message
-        msg = MIMEMultipart()
-        msg['From'] = smtp_user
-        msg['To'] = smtp_user  # Send to self for testing
-        msg['Subject'] = 'Test Email from NerdsLab Backend'
-        
-        # Add body
-        body = """
-        This is a test email from the NerdsLab Backend.
-        
-        If you're receiving this, the email configuration is working correctly.
-        
-        Test Details:
-        - SMTP Host: {host}
-        - SMTP Port: {port}
-        - SMTP User: {user}
-        
-        Best regards,
-        NerdsLab System
-        """.format(host=smtp_host, port=smtp_port, user=smtp_user)
-        
-        msg.attach(MIMEText(body, 'plain'))
-        
-        # Create SMTP connection
-        server = test_smtp_connection()
-        
-        # Send email
-        logger.info("Sending test email...")
-        server.send_message(msg)
-        logger.info("Test email sent successfully!")
-        
-        # Close connection
-        server.quit()
-        
-    except Exception as e:
-        logger.error(f"Failed to send test email: {str(e)}")
-        raise
-
-if __name__ == '__main__':
-    try:
-        logger.info("Starting email configuration test...")
-        
-        # Test SMTP connection
-        test_smtp_connection()
-        
-        # Test sending email
-        test_send_email()
-        
-        logger.info("All email tests completed successfully!")
-        
-    except Exception as e:
-        logger.error(f"Email test failed: {str(e)}")
-        raise 
+if __name__ == "__main__":
+    test_email_connection() 
