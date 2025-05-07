@@ -11,7 +11,8 @@ from .views import (
     PasswordResetConfirmView,
     ChangePasswordView,
     EmailVerificationView,
-    ResendVerificationEmailView
+    ResendVerificationEmailView,
+    LabsTokenBridgeView
 )
 
 urlpatterns = [
@@ -26,7 +27,7 @@ urlpatterns = [
     path('password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
     
     # CSRF token endpoint
-    path('csrf/', views.get_csrf_token, name='csrf-token'),
+    path('csrf/', views.get_csrf_token, name='get-csrf-token'),
     
     # Change password endpoint
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),
@@ -42,4 +43,7 @@ urlpatterns = [
     path('labs/templates/', views_labs.LabTemplateView.as_view(), name='lab-templates'),
     path('labs/<str:lab_id>/stop/', views_labs.LabStopView.as_view(), name='lab-stop'),
     path('labs/<str:lab_id>/restart/', views_labs.LabRestartView.as_view(), name='lab-restart'),
+    
+    # Labs API token bridge
+    path('labs-token/', LabsTokenBridgeView.as_view(), name='labs-token'),
 ]

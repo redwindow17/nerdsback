@@ -1,6 +1,91 @@
-# NerdsLab Backend
+# NerdsLab Backend (Server 1)
 
-A Django REST API for user authentication (login/logout) connected to a frontend.
+This is the main backend for NerdsLab Cyber Academy. It handles user authentication, profile management, and integration with Server 2 (Labs API).
+
+## Environment Setup
+
+This project has two environment configurations:
+
+1. **Development** - For local development
+2. **Production** - For deployment
+
+### Git Branches
+
+- `development` - For local development work
+- `production` - For production deployment
+
+### Switching Environments
+
+Use the provided script to switch between environments:
+
+```bash
+# Switch to development environment
+python switch_env.py dev
+
+# Switch to production environment
+python switch_env.py prod
+```
+
+## Database Configuration
+
+This application uses SQLite for both development and production environments.
+The database file is located at `db.sqlite3` in the project root directory.
+
+## Server 1 and Server 2 Integration
+
+The integration between Server 1 (this server) and Server 2 (Labs API) works as follows:
+
+1. Users log in to Server 1 to get an authentication token
+2. Server 1 uses a service token to authenticate with Server 2
+3. Server 2 provides a JWT token for the user
+4. The frontend uses both tokens to communicate with both servers
+
+### Environment Variables
+
+Key environment variables:
+
+- `DJANGO_DEBUG` - Set to True for development, False for production
+- `LABS_API_URL` - URL for Server 2 (Labs API)
+- `LABS_SERVICE_TOKEN` - Service token for authenticating with Server 2
+
+## Running the Server
+
+```bash
+# Development
+python manage.py runserver
+
+# Production
+python run_waitress.py
+```
+
+## Checking Production Readiness
+
+To verify that the system is ready for production, run:
+
+```bash
+python test_production.py
+```
+
+This script will check:
+- Database connection
+- Server 2 connectivity
+- Token exchange functionality
+
+## API Endpoints
+
+### Authentication
+- `/accounts/login/` - Login endpoint
+- `/accounts/register/` - Register a new user
+- `/accounts/me/` - Get current user details
+- `/accounts/logout/` - Logout endpoint
+- `/accounts/labs-token/` - Get Server 2 authentication token
+
+### Password Management
+- `/accounts/password-reset/` - Request password reset
+- `/accounts/password-reset/confirm/` - Confirm password reset
+- `/accounts/change-password/` - Change password
+- `/accounts/verify-email/` - Verify email address
+- `/accounts/resend-verification/` - Resend verification email
 
 ## Features
 
@@ -32,15 +117,6 @@ nerdslab_backend/
 ├── manage.py              # Django command-line utility
 └── requirements.txt       # Project dependencies
 ```
-
-## API Endpoints
-
-### Authentication
-
-- `POST /api/accounts/register/` - Register a new user
-- `POST /api/accounts/login/` - Login a user
-- `POST /api/accounts/logout/` - Logout a user
-- `GET /api/accounts/me/` - Get current user information
 
 ## Installation
 

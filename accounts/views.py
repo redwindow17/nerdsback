@@ -15,6 +15,10 @@ from django.utils import timezone
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.middleware.csrf import get_token
+import requests
+import json
+from rest_framework.decorators import permission_classes
+from rest_framework.permissions import IsAuthenticated
 
 from .serializers import (
     UserSerializer,
@@ -632,3 +636,48 @@ def get_csrf_token(request):
         'csrfToken': token,
         'message': 'New CSRF token generated'
     })
+
+@permission_classes([IsAuthenticated])
+class LabsTokenBridgeView(APIView):
+    """
+    View for bridging authentication between Server 1 and Server 2.
+    This endpoint allows the frontend to get a token for Server 2
+    after authenticating with Server 1.
+    """
+    def get(self, request):
+        # Get the current user
+        user = request.user
+        
+        # Get the service token for Server 2
+        service_token = os.environ.get('LABS_SERVICE_TOKEN', settings.LABS_SERVICE_TOKEN)
+        
+        # Get the Server 2 API URL
+        labs_api_url = os.environ.get('LABS_API_URL', settings.LABS_API_URL)
+        
+        # Make request to Server 2 to get a JWT token
+        try:
+            response = requests.post(
+                f"{labs_api_url}/auth/service-token/",
+                json={
+                    'service_token': service_token,
+                    'user_id': user.id,
+                    'username': user.username,
+                },
+                headers={'Content-Type': 'application/json'}
+            )
+            
+            # Check if the request was successful
+            if response.status_code == 200:
+                # Return the tokens to the frontend
+                return Response(response.json())
+            else:
+                # Return the error from Server 2
+                return Response({
+                    'error': 'Failed to get token from Server 2',
+                    'details': response.json()
+                }, status=response.status_code)
+        except Exception as e:
+            # Return a generic error
+            return Response({
+                'error': f'Failed to connect to Server 2: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
