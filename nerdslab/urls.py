@@ -6,26 +6,12 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.http import HttpResponse
 from django.conf import settings
+from django.conf.urls.static import static
 
-@api_view(['GET', 'OPTIONS'])
+@api_view(['GET'])
 @permission_classes([AllowAny])
 def api_health_check(request):
-    """Health check endpoint for API that can be used to test CORS"""
-    if request.method == 'OPTIONS':
-        response = Response()
-        response["Allow"] = "GET,OPTIONS"
-        response["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
-        response["Access-Control-Allow-Methods"] = "GET,OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
-        response["Access-Control-Allow-Credentials"] = "true"
-        response["Access-Control-Max-Age"] = "86400"
-        return response
-    
-    return Response({
-        'status': 'healthy', 
-        'cors': 'enabled',
-        'authenticated': request.user.is_authenticated,
-    })
+    return Response({'status': 'healthy'})
 
 def handle_options(request):
     response = HttpResponse()
@@ -40,8 +26,20 @@ def handle_options(request):
     
     return response
 
+# Simple test view to check if basic routing works
+def test_view(request):
+    return HttpResponse("Server is working correctly in HTTP mode!")
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
-    path('health/', api_health_check, name='health_check'),
-] 
+    path('health/', api_health_check, name='health-check'),
+    path('test/', test_view, name='test_view'),  # Add test URL
+    # Handle OPTIONS requests at the root level
+    path('', handle_options),
+]
+
+# Serve static and media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

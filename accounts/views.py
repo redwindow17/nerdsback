@@ -9,16 +9,13 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 import os
 from rest_framework import serializers
 from django.utils import timezone
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
-from django.middleware.csrf import get_token
-import requests
-import json
-from rest_framework.decorators import permission_classes
-from rest_framework.permissions import IsAuthenticated
 
 from .serializers import (
     UserSerializer,
@@ -29,182 +26,102 @@ from .serializers import (
     EmailVerificationSerializer
 )
 from .models import UserProfile, PasswordResetToken, EmailVerificationToken
+from nerdslab.email_config import send_verification_email, send_password_reset_email
 
-class RegisterView(generics.CreateAPIView):
-    queryset = User.objects.all()
+@method_decorator(csrf_exempt, name='dispatch')
+class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []  # No authentication required for registration
+    authentication_classes = []
     serializer_class = RegisterSerializer
     
     def options(self, request, *args, **kwargs):
-        response = Response()
-        response["Allow"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Origin"] = request.headers.get('Origin', '*')
-        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization, Accept, Origin, User-Agent, DNT, Cache-Control, X-Requested-With"
-        response["Access-Control-Allow-Credentials"] = "true"
-        response["Access-Control-Max-Age"] = "86400"
+        response = HttpResponse()
+        response['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
+        response['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'X-Requested-With, Content-Type, Authorization'
+        response['Access-Control-Allow-Credentials'] = 'true'
+        response['Access-Control-Max-Age'] = '1728000'
         return response
-
-    def create(self, request, *args, **kwargs):
-        # Enhanced debugging
-        print("\n==== REGISTER REQUEST ====")
-        print(f"Headers: {request.headers}")
-        print(f"Data: {request.data}")
-        print(f"Content-Type: {request.content_type}")
-        print(f"Method: {request.method}")
-        print(f"CORS Origin: {request.headers.get('Origin', 'None')}")
-        print(f"CSRF Token: {request.headers.get('X-CSRFToken', 'None')}")
-        print("==========================\n")
-        
-        # Check if we're dealing with form data and convert to JSON-compatible format
-        if hasattr(request.data, 'dict'):
-            data = request.data.dict()
-        else:
-            data = request.data
-            
-        print(f"Processed data for serializer: {data}")
-        
-        serializer = self.get_serializer(data=data)
+    
+    def post(self, request, *args, **kwargs):
+        # Log registration attempt
+        print(f"Register request data: {request.data}")
+        serializer = RegisterSerializer(data=request.data)
         try:
-            # Check if the data is valid, but print validation errors instead of raising exception
-            is_valid = serializer.is_valid()
-            if not is_valid:
-                print("Validation errors:", serializer.errors)
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            serializer.is_valid(raise_exception=True)
             
-            # Continue with registration if data is valid
-            user = serializer.save()
+            # Use transaction.atomic to ensure data consistency
+            from django.db import transaction
+            with transaction.atomic():
+                user = serializer.save()
+                
+                # Generate auth token for immediate login
+                token, _ = Token.objects.get_or_create(user=user)
             
-            # Send email verification instead of directly logging in user
-            self.send_verification_email(user)
-            
-            # Add CORS headers to response
-            response = Response({
-                "message": "Registration successful. Please check your email to verify your account.",
-                "user": UserSerializer(user, context=self.get_serializer_context()).data,
+            return Response({
+                "message": "Registration successful.",
+                "user": UserSerializer(user).data,
+                "token": token.key
             }, status=status.HTTP_201_CREATED)
             
-            # Add CORS headers directly to response
-            origin = request.headers.get('Origin')
-            if origin:
-                response["Access-Control-Allow-Origin"] = origin
-                response["Access-Control-Allow-Credentials"] = "true"
-                
-            return response
         except serializers.ValidationError as e:
-            # Handle validation errors with better messages (existing code)
             errors = e.detail
-            
-            # Handle password validation errors with more specific messages
             if 'password' in errors:
-                password_errors = errors['password']
-                
-                # Check for common validation error patterns and provide better messages
-                for i, error in enumerate(password_errors):
-                    error_str = str(error)
-                    
-                    if "similar to" in error_str:
-                        password_errors[i] = "Your password is too similar to your personal information. Please choose a more unique password."
-                    elif "too common" in error_str or "commonly used password" in error_str:
-                        password_errors[i] = "The password you chose is too common. Please choose a stronger password."
-                    elif "entirely numeric" in error_str:
-                        password_errors[i] = "Your password cannot consist of only numbers. Please include letters or special characters."
-                    elif "too short" in error_str:
-                        password_errors[i] = "Your password is too short. It must contain at least 8 characters."
-                    elif "keyboard pattern" in error_str or "common pattern" in error_str or "predictable pattern" in error_str:
-                        password_errors[i] = "Your password uses a common guessable pattern. Please use a more unique combination."
-                    elif "common word" in error_str:
-                        password_errors[i] = "Your password contains a common word that makes it easily guessable. Please choose a stronger password."
-                    elif "l33t speak" in error_str or "leet_pattern" in error_str or "leet_word" in error_str:
-                        password_errors[i] = "Your password uses common letter-to-symbol substitutions (like '@' for 'a'). Please use a more unique combination."
-                    elif "alternating case" in error_str:
-                        password_errors[i] = "Your password uses an alternating case pattern (like 'QwErTy'). Please use a more unique combination."
-                
-                errors['password'] = password_errors
-            
-            # Print specific validation errors for debugging
-            print("Specific validation errors:", errors)
+                errors['password'] = self.get_friendly_password_errors(errors['password'])
+            # Log validation errors
+            print(f"Specific validation errors: {errors}")
             return Response(errors, status=status.HTTP_400_BAD_REQUEST)
     
-    def send_verification_email(self, user):
-        # Get the latest token for this user
-        token = EmailVerificationToken.objects.filter(user=user).latest('created_at')
-        
-        # Prepare email with template
-        verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token.token}"
-        context = {
-            'verify_url': verify_url,
-            'user': user,
-            'expiry_hours': 48,  # Token expiry in hours
-        }
-        
-        # Render HTML email template
-        html_content = render_to_string('emails/email_verification.html', context)
-        text_content = strip_tags(html_content)  # Generate plain text version
-        
-        # Create email
-        subject = 'Verify Your NerdsLab Account'
-        from_email = settings.DEFAULT_FROM_EMAIL
-        to = [user.email]
-        
-        msg = EmailMultiAlternatives(subject, text_content, from_email, to)
-        msg.attach_alternative(html_content, "text/html")
-        
-        # Send email
-        msg.send()
-        
-        print(f"Verification email sent to {user.email} with token {token.token}")
+    def get_friendly_password_errors(self, password_errors):
+        friendly_messages = []
+        for error in password_errors:
+            error_str = str(error)
+            if "similar to" in error_str:
+                friendly_messages.append("Your password is too similar to your personal information")
+            elif "too common" in error_str:
+                friendly_messages.append("Please choose a stronger password")
+            elif "entirely numeric" in error_str:
+                friendly_messages.append("Include letters or special characters")
+            elif "too short" in error_str:
+                friendly_messages.append("Password must be at least 8 characters")
+            else:
+                friendly_messages.append(error_str)
+        return friendly_messages
 
+@method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []  # No authentication required for login
+    authentication_classes = []
+    serializer_class = LoginSerializer
     
     def options(self, request, *args, **kwargs):
-        response = Response()
-        response["Allow"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Origin"] = request.headers.get('Origin', '*')
-        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
-        response["Access-Control-Allow-Credentials"] = "true"
-        response["Access-Control-Max-Age"] = "86400"
-        return response
-    
-    def post(self, request):
-        print("Login request headers:", request.headers)
-        serializer = LoginSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
-        username = serializer.validated_data['username']
-        password = serializer.validated_data['password']
+        return Response(status=status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        # Log login attempt headers for debugging
+        print(f"Login request headers: {dict(request.headers)}")
         
-        user = authenticate(username=username, password=password)
-        if user is not None:
-            login(request, user)
-            token, created = Token.objects.get_or_create(user=user)
+        serializer = LoginSerializer(data=request.data)
+        if serializer.is_valid():
+            username = serializer.validated_data['username']
+            password = serializer.validated_data['password']
+            user = authenticate(username=username, password=password)
             
-            response = Response({
-                "user": UserSerializer(user).data,
-                "token": token.key,
-                "message": "Login successful"
-            })
-            return response
-        else:
-            return Response(
-                {"non_field_errors": ["Invalid credentials"]},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+            if user:
+                login(request, user)
+                token, created = Token.objects.get_or_create(user=user)
+                return Response({
+                    "token": token.key,
+                    "user": UserSerializer(user).data
+                })
+            return Response({
+                "error": "Invalid credentials"
+            }, status=status.HTTP_401_UNAUTHORIZED)
+            
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-    
-    def options(self, request, *args, **kwargs):
-        response = Response()
-        response["Allow"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
-        return response
     
     def post(self, request):
         # Delete token to logout
@@ -231,13 +148,6 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
 class PasswordResetRequestView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []  # No authentication required for password reset request
-    
-    def options(self, request, *args, **kwargs):
-        response = Response()
-        response["Allow"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
-        return response
     
     def post(self, request):
         # Debug request information
@@ -295,13 +205,6 @@ class PasswordResetRequestView(APIView):
 class PasswordResetConfirmView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []  # No authentication required for password reset confirmation
-    
-    def options(self, request, *args, **kwargs):
-        response = Response()
-        response["Allow"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
-        return response
     
     def post(self, request):
         # Debug request information
@@ -405,13 +308,6 @@ class PasswordResetConfirmView(APIView):
 class ChangePasswordView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
-    def options(self, request, *args, **kwargs):
-        response = Response()
-        response["Allow"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
-        return response
-    
     def post(self, request):
         # Debug authentication info
         print("Auth header:", request.META.get('HTTP_AUTHORIZATION'))
@@ -484,51 +380,54 @@ class ChangePasswordView(APIView):
 
 class EmailVerificationView(APIView):
     permission_classes = [permissions.AllowAny]
-    authentication_classes = []  # No authentication required for email verification
-    
-    def options(self, request, *args, **kwargs):
-        response = Response()
-        response["Allow"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
-        return response
+    authentication_classes = []
     
     def post(self, request):
-        print("Email verification request received:", request.data)
         serializer = EmailVerificationSerializer(data=request.data)
         if not serializer.is_valid():
-            print("Serializer validation failed:", serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         token_str = str(serializer.validated_data['token'])
-        print(f"Processing verification token: {token_str}")
+        
+        # Check cache first
+        from django.core.cache import cache
+        cache_key = f'email_verification_{token_str}'
+        cached_result = cache.get(cache_key)
+        
+        if cached_result and not cached_result.get('is_valid'):
+            return Response(
+                {'error': 'Verification link is invalid or has expired'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         try:
-            token = EmailVerificationToken.objects.get(token=token_str)
-            print(f"Found token for user: {token.user.username}, is_used: {token.is_used}, expires_at: {token.expires_at}")
+            # Use select_related to get user in a single query
+            token = EmailVerificationToken.objects.select_related('user').get(token=token_str)
             
             if not token.is_valid():
-                print(f"Token is invalid: is_used={token.is_used}, expires_at={token.expires_at}, now={timezone.now()}")
+                # Cache invalid token result
+                cache.set(cache_key, {'is_valid': False}, timeout=48*3600)
                 return Response(
                     {'error': 'Verification link is invalid or has expired'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Activate the user account
-            user = token.user
-            print(f"User before activation: {user.username}, is_active={user.is_active}")
-            user.is_active = True
-            user.save()
-            print(f"User after activation: {user.username}, is_active={user.is_active}")
+            # Use transaction to ensure atomicity
+            from django.db import transaction
+            with transaction.atomic():
+                user = token.user
+                user.is_active = True
+                user.save()
+                
+                # Mark token as used
+                token.is_used = True
+                token.save()
+                
+                # Generate authentication token for the user
+                auth_token, _ = Token.objects.get_or_create(user=user)
             
-            # Mark token as used
-            token.is_used = True
-            token.save()
-            print(f"Token marked as used: {token.token}, is_used={token.is_used}")
-            
-            # Generate authentication token for the user
-            auth_token, created = Token.objects.get_or_create(user=user)
-            print(f"Generated auth token: {auth_token.key}, created={created}")
+            # Cache the verification result
+            cache.delete(cache_key)
             
             return Response({
                 'message': 'Email verified successfully. Your account is now active.',
@@ -537,15 +436,13 @@ class EmailVerificationView(APIView):
             })
             
         except EmailVerificationToken.DoesNotExist:
-            print(f"Token not found: {token_str}")
+            # Cache negative result
+            cache.set(cache_key, {'is_valid': False}, timeout=48*3600)
             return Response(
                 {'error': 'Invalid verification token'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
-            print(f"Verification error: {str(e)}")
-            import traceback
-            traceback.print_exc()
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -559,41 +456,46 @@ class EmailVerificationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Check cache first
+        from django.core.cache import cache
+        cache_key = f'email_verification_{token}'
+        cached_result = cache.get(cache_key)
+        
+        if cached_result is not None:
+            return Response(
+                {'is_valid': cached_result.get('is_valid', False)},
+                status=status.HTTP_200_OK
+            )
+        
         try:
             token_obj = EmailVerificationToken.objects.get(token=token)
+            is_valid = token_obj.is_valid()
             
-            if not token_obj.is_valid():
+            # Cache the result
+            cache.set(cache_key, {'is_valid': is_valid}, timeout=48*3600)
+            
+            if not is_valid:
                 return Response(
                     {'is_valid': False, 'error': 'Verification link is invalid or has expired'},
                     status=status.HTTP_200_OK
                 )
-                
+            
             return Response(
                 {'is_valid': True},
                 status=status.HTTP_200_OK
             )
             
         except EmailVerificationToken.DoesNotExist:
+            # Cache negative result
+            cache.set(cache_key, {'is_valid': False}, timeout=48*3600)
             return Response(
                 {'is_valid': False, 'error': 'Invalid verification token'},
-                status=status.HTTP_200_OK
-            )
-        except Exception as e:
-            return Response(
-                {'is_valid': False, 'error': str(e)},
                 status=status.HTTP_200_OK
             )
 
 class ResendVerificationEmailView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []  # No authentication required for resending verification
-    
-    def options(self, request, *args, **kwargs):
-        response = Response()
-        response["Allow"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Methods"] = "POST,OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Content-Type, X-CSRFToken, Authorization"
-        return response
     
     def post(self, request):
         email = request.data.get('email')
@@ -626,18 +528,49 @@ class ResendVerificationEmailView(APIView):
             html_content = render_to_string('emails/email_verification.html', context)
             text_content = strip_tags(html_content)  # Generate plain text version
             
-            # Create email
+            # Create email with timeout settings
             subject = 'Verify Your NerdsLab Account'
             from_email = settings.DEFAULT_FROM_EMAIL
             to = [user.email]
             
-            msg = EmailMultiAlternatives(subject, text_content, from_email, to)
+            msg = EmailMultiAlternatives(
+                subject, 
+                text_content, 
+                from_email, 
+                to,
+                connection=get_connection(timeout=settings.EMAIL_TIMEOUT)
+            )
             msg.attach_alternative(html_content, "text/html")
             
-            # Send email
-            msg.send()
+            # Implement retry mechanism
+            from smtplib import SMTPException
+            from socket import timeout as SocketTimeout
+            import time
+            import logging
             
-            return Response({'message': 'Verification email sent'})
+            logger = logging.getLogger('accounts')
+            
+            for attempt in range(settings.SMTP_MAX_RETRIES):
+                try:
+                    msg.send()
+                    logger.info(f"Resent verification email successfully to {user.email}")
+                    return Response({'message': 'Verification email sent'})
+                except (SMTPException, SocketTimeout) as e:
+                    if attempt < settings.SMTP_MAX_RETRIES - 1:
+                        logger.warning(f"Resend verification email failed (attempt {attempt + 1}): {str(e)}")
+                        time.sleep(settings.SMTP_RETRY_DELAY)
+                    else:
+                        logger.error(f"All resend verification email attempts failed for {user.email}: {str(e)}")
+                        return Response(
+                            {'error': 'Failed to send verification email. Please try again later.'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                        )
+                except Exception as e:
+                    logger.error(f"Unexpected error resending verification email to {user.email}: {str(e)}")
+                    return Response(
+                        {'error': str(e)},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
             
         except User.DoesNotExist:
             # Don't reveal if email exists for security reasons
@@ -658,56 +591,3 @@ def csrf_failure(request, reason=""):
     
     # For HTML requests
     return render(request, 'accounts/csrf_error.html', {'reason': reason}, status=403)
-
-def get_csrf_token(request):
-    """View to get a new CSRF token"""
-    token = get_token(request)
-    return JsonResponse({
-        'csrfToken': token,
-        'message': 'New CSRF token generated'
-    })
-
-@permission_classes([IsAuthenticated])
-class LabsTokenBridgeView(APIView):
-    """
-    View for bridging authentication between Server 1 and Server 2.
-    This endpoint allows the frontend to get a token for Server 2
-    after authenticating with Server 1.
-    """
-    def get(self, request):
-        # Get the current user
-        user = request.user
-        
-        # Get the service token for Server 2
-        service_token = os.environ.get('LABS_SERVICE_TOKEN', settings.LABS_SERVICE_TOKEN)
-        
-        # Get the Server 2 API URL
-        labs_api_url = os.environ.get('LABS_API_URL', settings.LABS_API_URL)
-        
-        # Make request to Server 2 to get a JWT token
-        try:
-            response = requests.post(
-                f"{labs_api_url}/auth/service-token/",
-                json={
-                    'service_token': service_token,
-                    'user_id': user.id,
-                    'username': user.username,
-                },
-                headers={'Content-Type': 'application/json'}
-            )
-            
-            # Check if the request was successful
-            if response.status_code == 200:
-                # Return the tokens to the frontend
-                return Response(response.json())
-            else:
-                # Return the error from Server 2
-                return Response({
-                    'error': 'Failed to get token from Server 2',
-                    'details': response.json()
-                }, status=response.status_code)
-        except Exception as e:
-            # Return a generic error
-            return Response({
-                'error': f'Failed to connect to Server 2: {str(e)}'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
